@@ -206,7 +206,7 @@ function createMusicContext() {
   if (!AudioContext) return;
   music.context = new AudioContext();
   music.gain = music.context.createGain();
-  music.gain.gain.value = 0.035;
+  music.gain.gain.value = 0.11;
   music.gain.connect(music.context.destination);
 }
 
@@ -218,7 +218,7 @@ function playTone(frequency, duration, volume = 1) {
   oscillator.type = "square";
   oscillator.frequency.value = frequency;
   envelope.gain.setValueAtTime(0.0001, now);
-  envelope.gain.exponentialRampToValueAtTime(0.12 * volume, now + 0.012);
+  envelope.gain.exponentialRampToValueAtTime(0.22 * volume, now + 0.012);
   envelope.gain.exponentialRampToValueAtTime(0.0001, now + duration);
   oscillator.connect(envelope);
   envelope.connect(music.gain);
@@ -234,7 +234,7 @@ function scheduleTone(frequency, startOffset, duration, volume = 1) {
   oscillator.type = "square";
   oscillator.frequency.value = frequency;
   envelope.gain.setValueAtTime(0.0001, now);
-  envelope.gain.exponentialRampToValueAtTime(0.16 * volume, now + 0.01);
+  envelope.gain.exponentialRampToValueAtTime(0.26 * volume, now + 0.01);
   envelope.gain.exponentialRampToValueAtTime(0.0001, now + duration);
   oscillator.connect(envelope);
   envelope.connect(music.gain);
@@ -257,7 +257,7 @@ function playGameOverJingle() {
   if (!state.soundEnabled) return;
   createMusicContext();
   music.context?.resume();
-  if (music.gain) music.gain.gain.value = 0.045;
+  if (music.gain) music.gain.gain.value = 0.14;
   scheduleTone(392.0, 0.00, 0.16, 0.9);
   scheduleTone(349.23, 0.17, 0.16, 0.9);
   scheduleTone(293.66, 0.34, 0.18, 0.9);
@@ -277,7 +277,7 @@ function startMusic() {
   if (!state.soundEnabled) return;
   createMusicContext();
   music.context?.resume();
-  if (music.gain) music.gain.gain.value = 0.035;
+  if (music.gain) music.gain.gain.value = 0.11;
   if (music.timer) return;
   musicTick();
   music.timer = window.setInterval(musicTick, (60 / music.tempo) * 500);
@@ -289,7 +289,7 @@ function stopMusic() {
 }
 
 function softenMusic() {
-  if (music.gain) music.gain.gain.value = 0.018;
+  if (music.gain) music.gain.gain.value = 0.055;
 }
 
 function updateSoundButton() {
