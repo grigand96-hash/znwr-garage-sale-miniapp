@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0025ff" />
+    <title>ZNWR Garage Sale</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  </head>
+  <body>
+    <main class="app" data-state="intro">
+      <section class="screen">
+        <div class="hud">
+          <div class="scoreboard" aria-label="Счёт">
+            <span id="score">00</span>
+            <span>/24</span>
+          </div>
+        </div>
+
+        <img class="poster" src="./assets/garage-sale-poster.png" alt="Архив распродажа ZNWR" />
+
+        <canvas id="game" width="360" height="640" aria-label="Игра ZNWR Garage Sale"></canvas>
+
+        <button class="sound-toggle" id="soundButton" type="button" aria-label="Выключить звук">SOUND ON</button>
+
+        <section class="panel intro-panel" id="introPanel">
+          <button class="primary" id="startButton" type="button">START</button>
+        </section>
+
+        <section class="panel prize-panel" id="prizePanel" hidden>
+          <p class="kicker">PROMO UNLOCKED</p>
+          <h2 id="promoCode">ZNWR-1986</h2>
+          <div class="actions">
+            <button class="primary" id="copyButton" type="button">COPY</button>
+            <button class="secondary" id="againButton" type="button">AGAIN</button>
+          </div>
+        </section>
+
+        <section class="panel gameover-panel" id="gameoverPanel" hidden>
+          <p class="kicker">TRY AGAIN</p>
+          <h2>GAME OVER</h2>
+          <button class="primary" id="restartButton" type="button">AGAIN</button>
+        </section>
+
+        <div class="controls">
+          <button class="pad pad-up" id="upButton" type="button" aria-label="Вверх">▲</button>
+          <button class="pad pad-left" id="leftButton" type="button" aria-label="Влево">◀</button>
+          <button class="pad pad-right" id="rightButton" type="button" aria-label="Вправо">▶</button>
+          <button class="pad pad-down" id="downButton" type="button" aria-label="Вниз">▼</button>
+        </div>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>

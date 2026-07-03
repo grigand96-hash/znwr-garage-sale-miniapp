@@ -1,0 +1,24 @@
+# ZNWR Garage Sale Mini App
+
+Telegram WebApp prototype for an 80s arcade-style garage sale promo maze.
+
+## Local Preview
+
+Open `index.html` directly or serve the folder:
+
+```bash
+python3 -m http.server 5173
+```
+
+Then open `http://localhost:5173`.
+
+## Telegram
+
+Host the folder on HTTPS and set the URL as a Telegram bot WebApp button.
+The app already calls `Telegram.WebApp.ready()`, `expand()`, header/background
+color methods, and uses haptic feedback when available.
+
+Promo codes are defined in `app.js` in the `promoCodes` array. The current
+prototype unlocks a promo after 20 maze dots and stores a won promo in
+`localStorage`; for production, promo issuance should be moved to a backend
+endpoint tied to Telegram user identity.
