@@ -27,6 +27,8 @@ const rightButton = document.querySelector("#rightButton");
 const promoCodes = ["ZNWR-80S-10", "GARAGE-15", "NEMIGA-20", "BREAD-1986", "SALE-BOSS"];
 const storageKey = "znwr-garage-sale-promo";
 const soundStorageKey = "znwr-garage-sale-sound";
+const analyticsEndpoint = "";
+const sessionId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
 const maze = [
   "#############",
@@ -76,6 +78,7 @@ const state = {
   enemies: [],
   particles: [],
   lastFrame: 0,
+  gameStartedAt: 0,
   dangerUntil: 0,
   promo: localStorage.getItem(storageKey) || "",
   soundEnabled: localStorage.getItem(soundStorageKey) !== "off",
@@ -127,6 +130,7 @@ function setMode(mode) {
 
 function resetGame() {
   state.score = 0;
+  state.gameStartedAt = Date.now();
   state.dots = new Set();
   maze.forEach((row, y) => {
     [...row].forEach((cell, x) => {
@@ -177,6 +181,7 @@ function startGame() {
   setMode("playing");
   resize();
   startMusic();
+  logEvent("game_start");
   tg?.HapticFeedback?.impactOccurred("medium");
 }
 
@@ -188,6 +193,7 @@ function unlockPrize() {
   setMode("prize");
   softenMusic();
   playWinJingle();
+  logEvent("promo_unlocked", { promo });
   tg?.HapticFeedback?.notificationOccurred("success");
 }
 
@@ -197,7 +203,45 @@ function gameOver() {
   setMode("gameover");
   stopMusic();
   playGameOverJingle();
+  logEvent("game_over");
   tg?.HapticFeedback?.notificationOccurred("error");
+}
+
+function getPlaySeconds() {
+  if (!state.gameStartedAt) return 0;
+  return Math.round((Date.now() - state.gameStartedAt) / 1000);
+}
+
+function logEvent(eventName, extra = {}) {
+  if (!analyticsEndpoint) return;
+  const tgUser = tg?.initDataUnsafe?.user || {};
+  const payload = {
+    event: eventName,
+    session_id: sessionId,
+    timestamp: new Date().toISOString(),
+    score: state.score,
+    target: state.target,
+    play_seconds: getPlaySeconds(),
+    mode: state.mode,
+    sound_enabled: state.soundEnabled,
+    promo: state.promo || "",
+    app_url: window.location.href,
+    user_agent: navigator.userAgent,
+    telegram_init_data: tg?.initData || "",
+    telegram_user_id: tgUser.id || "",
+    telegram_username: tgUser.username || "",
+    telegram_first_name: tgUser.first_name || "",
+    telegram_last_name: tgUser.last_name || "",
+    ...extra,
+  };
+
+  fetch(analyticsEndpoint, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(payload),
+    keepalive: true,
+  }).catch(() => {});
 }
 
 function createMusicContext() {
@@ -303,6 +347,7 @@ function toggleSound() {
   updateSoundButton();
   if (state.soundEnabled && state.mode === "playing") startMusic();
   if (!state.soundEnabled) stopMusic();
+  logEvent(state.soundEnabled ? "sound_on" : "sound_off");
 }
 
 function addParticles(x, y) {
@@ -563,6 +608,7 @@ function bindPad(button, x, y) {
 function copyPromo() {
   navigator.clipboard?.writeText(state.promo);
   copyButton.textContent = "COPIED";
+  logEvent("promo_copied");
   tg?.HapticFeedback?.impactOccurred("light");
   setTimeout(() => {
     copyButton.textContent = "COPY";
