@@ -27,7 +27,7 @@ const rightButton = document.querySelector("#rightButton");
 const promoCodes = ["ZNWR-80S-10", "GARAGE-15", "NEMIGA-20", "BREAD-1986", "SALE-BOSS"];
 const storageKey = "znwr-garage-sale-promo";
 const soundStorageKey = "znwr-garage-sale-sound";
-const analyticsEndpoint = "";
+const analyticsEndpoint = "https://script.google.com/macros/s/AKfycbyyVhu_3TZ0X9NdyFIE0B2EJiCAlF18Eglhc5w2wOOQLJQ8hELMUHsmyDUCNRUYUMr2Dg/exec";
 const sessionId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
 const maze = [
