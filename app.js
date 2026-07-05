@@ -704,7 +704,7 @@ function shareImageBlob() {
 
   // Сейл
   drawCenteredText(storyCtx, "GARAGE + SAMPLE SALE", 470, 46);
-  drawCenteredText(storyCtx, "10-12 ИЮЛЯ · ХЛЕБОЗАВОД", 548, 36);
+  drawCenteredText(storyCtx, "10-12 ИЮЛЯ · ХЛЕБОЗАВОД, НЕМИГА", 548, 34);
   drawCenteredText(storyCtx, "20-90%", 740, 190);
 
   // Карточка рейтинга
