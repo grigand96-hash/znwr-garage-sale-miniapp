@@ -46,18 +46,15 @@ const ratingList = document.querySelector("#ratingList");
 const chanceText = document.querySelector("#chanceText");
 const instagramShareButton = document.querySelector("#instagramShareButton");
 const ratingCloseButton = document.querySelector("#ratingCloseButton");
-const ratingMenuButton = document.querySelector("#ratingMenuButton");
 const salePanel = document.querySelector("#salePanel");
 const saleDetailsBlock = document.querySelector("#saleDetailsBlock");
 const saleDetailsButton = document.querySelector("#saleDetailsButton");
 const saleChannelButton = document.querySelector("#saleChannelButton");
 const saleCloseButton = document.querySelector("#saleCloseButton");
-const saleMenuButton = document.querySelector("#saleMenuButton");
 const rulesPanel = document.querySelector("#rulesPanel");
 const rulesIntroButton = document.querySelector("#rulesIntroButton");
 const rulesButton = document.querySelector("#rulesButton");
 const rulesCloseButton = document.querySelector("#rulesCloseButton");
-const rulesMenuButton = document.querySelector("#rulesMenuButton");
 const tgShareButton = document.querySelector("#tgShareButton");
 const prizeTgButton = document.querySelector("#prizeTgButton");
 const prizeSaleButton = document.querySelector("#prizeSaleButton");
@@ -1479,7 +1476,6 @@ saleButton.addEventListener("click", openSaleInfo);
 ratingButton.addEventListener("click", openRating);
 ratingIntroButton.addEventListener("click", openRating);
 ratingCloseButton.addEventListener("click", closeRating);
-ratingMenuButton.addEventListener("click", returnToMenu);
 instagramShareButton.addEventListener("click", () => {
   shareToInstagram().catch(() => {});
 });
@@ -1489,11 +1485,9 @@ prizeShareButton.addEventListener("click", () => {
 saleDetailsButton.addEventListener("click", openSaleDetails);
 saleChannelButton.addEventListener("click", openSaleChannel);
 saleCloseButton.addEventListener("click", closeSaleInfo);
-saleMenuButton.addEventListener("click", returnToMenu);
 rulesIntroButton.addEventListener("click", openRules);
 rulesButton.addEventListener("click", openRules);
 rulesCloseButton.addEventListener("click", closeRules);
-rulesMenuButton.addEventListener("click", returnToMenu);
 tgShareButton.addEventListener("click", shareToTelegram);
 prizeTgButton.addEventListener("click", shareToTelegram);
 prizeSaleButton.addEventListener("click", () => {
