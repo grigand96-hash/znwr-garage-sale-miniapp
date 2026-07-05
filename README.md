@@ -1,6 +1,6 @@
 # ZNWR Garage Sale Mini App
 
-Telegram WebApp prototype for an 80s arcade-style garage sale promo maze.
+Telegram WebApp prototype for an 80s arcade-style Garage + Sample Sale game.
 
 ## Public URL
 
@@ -28,7 +28,7 @@ Google Sheets logging is prepared in `google-sheets-logger/`.
 Deploy that Apps Script as a Web App, then paste the Web App URL into
 `analyticsEndpoint` in `app.js`.
 
-Promo codes are defined in `app.js` in the `promoCodes` array. The current
-prototype unlocks a promo after 24 maze dots and stores a won promo in
-`localStorage`; for production, promo issuance should be moved to a backend
-endpoint tied to Telegram user identity.
+The app logs game starts, rating results, sale-info opens, site clicks, and
+Instagram share intents. The public ranking is based on the sum of each
+player's best result across the three games, with game coefficients and a
+speed bonus.

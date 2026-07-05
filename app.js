@@ -14,30 +14,61 @@ const scoreNode = document.querySelector("#score");
 const targetNode = document.querySelector("#target");
 const gameLabelNode = document.querySelector("#gameLabel");
 const startButton = document.querySelector("#startButton");
+const znwrButton = document.querySelector("#znwrButton");
 const gameButtons = [...document.querySelectorAll(".game-option")];
-const copyButton = document.querySelector("#copyButton");
+const menuButton = document.querySelector("#menuButton");
+const saleButton = document.querySelector("#saleButton");
+const ratingButton = document.querySelector("#ratingButton");
+const ratingIntroButton = document.querySelector("#ratingIntroButton");
+const ratingPanel = document.querySelector("#ratingPanel");
+const ratingList = document.querySelector("#ratingList");
+const chanceText = document.querySelector("#chanceText");
+const instagramShareButton = document.querySelector("#instagramShareButton");
+const ratingCloseButton = document.querySelector("#ratingCloseButton");
+const ratingMenuButton = document.querySelector("#ratingMenuButton");
+const salePanel = document.querySelector("#salePanel");
+const saleDetailsButton = document.querySelector("#saleDetailsButton");
+const saleCloseButton = document.querySelector("#saleCloseButton");
+const saleMenuButton = document.querySelector("#saleMenuButton");
 const againButton = document.querySelector("#againButton");
+const otherGamesButton = document.querySelector("#otherGamesButton");
 const restartButton = document.querySelector("#restartButton");
 const prizePanel = document.querySelector("#prizePanel");
 const gameoverPanel = document.querySelector("#gameoverPanel");
-const promoCodeNode = document.querySelector("#promoCode");
+const resultPlaceNode = document.querySelector("#resultPlace");
+const resultSummaryNode = document.querySelector("#resultSummary");
+const resultBestGameNode = document.querySelector("#resultBestGame");
+const resultChanceNode = document.querySelector("#resultChance");
+const prizeShareButton = document.querySelector("#prizeShareButton");
 const soundButton = document.querySelector("#soundButton");
 const upButton = document.querySelector("#upButton");
 const downButton = document.querySelector("#downButton");
 const leftButton = document.querySelector("#leftButton");
 const rightButton = document.querySelector("#rightButton");
 
-const promoCodes = ["ZNWR-80S-10", "GARAGE-15", "NEMIGA-20", "BREAD-1986", "SALE-BOSS"];
-const storageKey = "znwr-garage-sale-promo";
 const soundStorageKey = "znwr-garage-sale-sound";
+const ratingStorageKey = "znwr-garage-sale-rating";
+const repostStorageKey = "znwr-garage-sale-repost";
 const analyticsEndpoint = "https://script.google.com/macros/s/AKfycbyyVhu_3TZ0X9NdyFIE0B2EJiCAlF18Eglhc5w2wOOQLJQ8hELMUHsmyDUCNRUYUMr2Dg/exec";
+const urlParams = new URLSearchParams(window.location.search);
+const botShareUrl = urlParams.get("botLink") || "https://t.me/znwr_bot";
+const salePostUrl = urlParams.get("postLink") || "https://t.me/znwr";
+const znwrSiteUrl = "https://znwr.ru/?utm_source=tg_game";
 const sessionId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
 const gameModes = {
-  pac: { label: "PAC SALE", target: 24 },
-  invaders: { label: "CODE INVADERS", target: 18 },
-  breakout: { label: "PROMO BREAKOUT", target: 18 },
+  pac: { label: "PAC SALE", target: 24, coefficient: 1, parSeconds: 55 },
+  invaders: { label: "CODE INVADERS", target: 10, coefficient: 1.12, parSeconds: 45 },
+  breakout: { label: "PROMO BREAKOUT", target: 18, coefficient: 1.06, parSeconds: 50 },
 };
+
+const demoLeaders = [
+  { name: "@pixel_minsk", rating: 3285, gamesDone: 3, bestGame: "PAC SALE", totalSeconds: 132 },
+  { name: "@nemiga1986", rating: 3018, gamesDone: 3, bestGame: "CODE INVADERS", totalSeconds: 148 },
+  { name: "@breadboss", rating: 2760, gamesDone: 2, bestGame: "PROMO BREAKOUT", totalSeconds: 94 },
+  { name: "@znwr_runner", rating: 2310, gamesDone: 2, bestGame: "PAC SALE", totalSeconds: 104 },
+  { name: "@archive_kid", rating: 1745, gamesDone: 1, bestGame: "CODE INVADERS", totalSeconds: 57 },
+];
 
 const maze = [
   "#############",
@@ -92,7 +123,7 @@ const state = {
   lastFrame: 0,
   gameStartedAt: 0,
   dangerUntil: 0,
-  promo: localStorage.getItem(storageKey) || "",
+  infoOpen: false,
   soundEnabled: localStorage.getItem(soundStorageKey) !== "off",
 };
 
@@ -204,8 +235,8 @@ function resetPacGame() {
 }
 
 function resetInvadersGame() {
-  const cols = 6;
-  const rows = 3;
+  const cols = 5;
+  const rows = 2;
   const aliens = [];
   for (let y = 0; y < rows; y += 1) {
     for (let x = 0; x < cols; x += 1) {
@@ -217,10 +248,12 @@ function resetInvadersGame() {
     playerDir: 0,
     shot: null,
     aliens,
+    cols,
+    rows,
     alienDir: 1,
     alienOffsetX: 0,
     alienOffsetY: 0,
-    alienSpeed: 0.18,
+    alienSpeed: 0.075,
     fireCooldown: 0,
   };
   state.dots = new Set();
@@ -247,16 +280,11 @@ function resetBreakoutGame() {
   state.invaders = null;
 }
 
-function choosePromo() {
-  if (state.promo) return state.promo;
-  const index = Math.floor(Math.random() * promoCodes.length);
-  state.promo = promoCodes[index];
-  localStorage.setItem(storageKey, state.promo);
-  return state.promo;
-}
-
 function startGame(gameType = state.gameType) {
   selectGame(gameType);
+  state.infoOpen = false;
+  salePanel.hidden = true;
+  ratingPanel.hidden = true;
   prizePanel.hidden = true;
   gameoverPanel.hidden = true;
   resetGame();
@@ -267,19 +295,373 @@ function startGame(gameType = state.gameType) {
   tg?.HapticFeedback?.impactOccurred("medium");
 }
 
+function returnToMenu() {
+  stopMusic();
+  state.infoOpen = false;
+  salePanel.hidden = true;
+  ratingPanel.hidden = true;
+  prizePanel.hidden = true;
+  gameoverPanel.hidden = true;
+  setMode("intro");
+  resetGame();
+  logEvent("menu_opened");
+  tg?.HapticFeedback?.impactOccurred("light");
+}
+
+function openSaleInfo() {
+  state.infoOpen = true;
+  ratingPanel.hidden = true;
+  salePanel.hidden = false;
+  logEvent("sale_info_open");
+  tg?.HapticFeedback?.impactOccurred("light");
+}
+
+function closeSaleInfo() {
+  state.infoOpen = false;
+  salePanel.hidden = true;
+  tg?.HapticFeedback?.impactOccurred("light");
+}
+
+function openSaleDetails() {
+  logEvent("sale_details_open", { sale_post_url: salePostUrl });
+  if (tg?.openTelegramLink && /^https:\/\/t\.me\//.test(salePostUrl)) {
+    tg.openTelegramLink(salePostUrl);
+  } else {
+    window.open(salePostUrl, "_blank", "noopener");
+  }
+  tg?.HapticFeedback?.impactOccurred("light");
+}
+
+function openZnwrSite() {
+  logEvent("znwr_site_open", { url: znwrSiteUrl });
+  if (tg?.openLink) {
+    tg.openLink(znwrSiteUrl);
+  } else {
+    window.open(znwrSiteUrl, "_blank", "noopener");
+  }
+  tg?.HapticFeedback?.impactOccurred("light");
+}
+
+function localPlayerName() {
+  const tgUser = tg?.initDataUnsafe?.user || {};
+  if (tgUser.username) return `@${tgUser.username}`;
+  if (tgUser.first_name) return tgUser.first_name;
+  return "YOU";
+}
+
+function getStoredRating() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(ratingStorageKey) || "null");
+    if (!stored) return { games: {} };
+    if (stored.games) return stored;
+    const gameType = Object.keys(gameModes).find((key) => gameModes[key].label === stored.game) || "pac";
+    return { games: { [gameType]: { ...stored, gameType } } };
+  } catch {
+    return { games: {} };
+  }
+}
+
+function getLocalBest() {
+  return aggregateLocalRating();
+}
+
+function hasRepostBoost() {
+  return localStorage.getItem(repostStorageKey) === "on";
+}
+
+function chanceMultiplier() {
+  return hasRepostBoost() ? 2 : 1;
+}
+
+function updateChanceUi() {
+  chanceText.textContent = `ШАНС В РОЗЫГРЫШЕ: X${chanceMultiplier()}`;
+  instagramShareButton.textContent = hasRepostBoost() ? "X2 ACTIVE" : "SHARE TO INSTA";
+  instagramShareButton.disabled = false;
+}
+
+function saveLocalBest(result) {
+  const rating = getStoredRating();
+  const previous = rating.games[result.gameType];
+  const isBetter = !previous
+    || result.score > previous.score
+    || (result.score === previous.score && result.seconds < previous.seconds);
+  if (!isBetter) return;
+  rating.games[result.gameType] = result;
+  localStorage.setItem(ratingStorageKey, JSON.stringify(rating));
+}
+
+function recordRatingResult(outcome) {
+  if (!state.gameStartedAt) return;
+  const result = {
+    name: localPlayerName(),
+    gameType: state.gameType,
+    game: gameModes[state.gameType].label,
+    score: state.score,
+    seconds: getPlaySeconds(),
+    outcome,
+  };
+  saveLocalBest(result);
+  const aggregate = aggregateLocalRating();
+  logEvent("rating_result", {
+    outcome,
+    result_score: result.score,
+    result_seconds: result.seconds,
+    game_rating: calculateGameRating(result),
+    total_rating: aggregate?.rating || 0,
+    games_done: aggregate?.gamesDone || 0,
+    chance_multiplier: chanceMultiplier(),
+  });
+}
+
+function leaderboardRows() {
+  const localRating = aggregateLocalRating();
+  const boostedRating = localRating ? { ...localRating, chance: chanceMultiplier() } : null;
+  const rows = boostedRating ? [boostedRating, ...demoLeaders] : demoLeaders;
+  return sortRatingRows(rows)
+    .slice(0, 6);
+}
+
+function sortRatingRows(rows) {
+  return rows
+    .slice()
+    .sort((a, b) => b.rating - a.rating || b.gamesDone - a.gamesDone || a.totalSeconds - b.totalSeconds);
+}
+
+function localRatingPlace() {
+  const localRating = aggregateLocalRating();
+  if (!localRating) return null;
+  const rows = sortRatingRows([localRating, ...demoLeaders]);
+  const index = rows.findIndex((row) => {
+    return row.name === localRating.name
+      && row.rating === localRating.rating
+      && row.gamesDone === localRating.gamesDone;
+  });
+  return index === -1 ? null : index + 1;
+}
+
+function calculateGameRating(result) {
+  const mode = gameModes[result.gameType] || gameModes.pac;
+  const completion = Math.min(result.score, mode.target) / mode.target;
+  const base = completion * 1000;
+  const speedBonus = completion >= 1
+    ? Math.max(0, (mode.parSeconds - result.seconds) / mode.parSeconds) * 250
+    : 0;
+  return Math.round((base + speedBonus) * mode.coefficient);
+}
+
+function aggregateLocalRating() {
+  const rating = getStoredRating();
+  const results = Object.values(rating.games || {});
+  if (!results.length) return null;
+  const totalRating = results.reduce((sum, result) => sum + calculateGameRating(result), 0);
+  const totalSeconds = results.reduce((sum, result) => sum + result.seconds, 0);
+  const best = results
+    .slice()
+    .sort((a, b) => calculateGameRating(b) - calculateGameRating(a))[0];
+  return {
+    name: localPlayerName(),
+    rating: totalRating,
+    gamesDone: results.length,
+    bestGame: best.game,
+    totalSeconds,
+    results,
+  };
+}
+
+function updateResultPanel() {
+  const aggregate = aggregateLocalRating();
+  const place = localRatingPlace();
+  if (!aggregate) {
+    resultPlaceNode.textContent = "RATING";
+    resultSummaryNode.textContent = "СЫГРАЙ, ЧТОБЫ ПОПАСТЬ В РЕЙТИНГ";
+    resultBestGameNode.textContent = "";
+  } else {
+    resultPlaceNode.textContent = place ? `#${place}` : "RATING";
+    resultSummaryNode.textContent = `${aggregate.rating} PTS · ${aggregate.gamesDone}/3 GAMES`;
+    resultBestGameNode.textContent = `BEST ${aggregate.bestGame}`;
+  }
+  resultChanceNode.textContent = `ШАНС В РОЗЫГРЫШЕ: X${chanceMultiplier()}`;
+  prizeShareButton.textContent = hasRepostBoost() ? "ШАНС X2 АКТИВЕН" : "УДВОИТЬ ШАНС";
+  prizeShareButton.disabled = false;
+}
+
+function renderRating() {
+  ratingList.innerHTML = "";
+  updateChanceUi();
+  leaderboardRows().forEach((row, index) => {
+    const item = document.createElement("li");
+    const place = document.createElement("span");
+    const player = document.createElement("span");
+    const game = document.createElement("span");
+    const score = document.createElement("span");
+    place.textContent = `#${index + 1}`;
+    player.className = "player";
+    player.textContent = row.name;
+    game.className = "meta";
+    game.textContent = `${row.gamesDone}/3 · BEST ${row.bestGame}`;
+    score.textContent = `${row.rating} PTS`;
+    if (row.chance === 2) score.textContent += " X2";
+    player.appendChild(game);
+    item.append(place, player, score);
+    ratingList.appendChild(item);
+  });
+}
+
+function openRating() {
+  state.infoOpen = state.mode === "playing";
+  salePanel.hidden = true;
+  renderRating();
+  ratingPanel.hidden = false;
+  logEvent("rating_open");
+  tg?.HapticFeedback?.impactOccurred("light");
+}
+
+function closeRating() {
+  state.infoOpen = false;
+  ratingPanel.hidden = true;
+  tg?.HapticFeedback?.impactOccurred("light");
+}
+
+function drawCenteredText(targetCtx, text, y, size, color = "#ffffff") {
+  targetCtx.fillStyle = color;
+  targetCtx.font = `900 ${size}px Courier New, monospace`;
+  targetCtx.textAlign = "center";
+  targetCtx.textBaseline = "middle";
+  targetCtx.fillText(text, 540, y);
+}
+
+function drawStoryLine(targetCtx, text, x, y, size, align = "left", color = "#ffffff") {
+  targetCtx.fillStyle = color;
+  targetCtx.font = `900 ${size}px Courier New, monospace`;
+  targetCtx.textAlign = align;
+  targetCtx.textBaseline = "middle";
+  targetCtx.fillText(text, x, y);
+}
+
+function drawPixelMark(targetCtx, x, y, scale = 1) {
+  targetCtx.fillStyle = "#ffffff";
+  const s = 28 * scale;
+  targetCtx.fillRect(x + s, y, s, s);
+  targetCtx.fillRect(x + s * 3, y, s, s);
+  targetCtx.fillRect(x + s * 2, y + s, s, s);
+  targetCtx.fillRect(x + s, y + s * 2, s, s);
+  targetCtx.fillRect(x + s * 3, y + s * 2, s, s);
+}
+
+function shareImageBlob() {
+  const rating = aggregateLocalRating();
+  const currentRating = rating?.rating || 0;
+  const currentGame = rating?.bestGame || gameModes[state.gameType].label;
+  const gamesDone = rating?.gamesDone || 0;
+  const totalSeconds = rating?.totalSeconds || getPlaySeconds();
+  const ratingPlace = localRatingPlace();
+  const ratingText = ratingPlace ? `МОЙ РЕЙТИНГ #${ratingPlace}` : "Я В РЕЙТИНГЕ";
+  const story = document.createElement("canvas");
+  story.width = 1080;
+  story.height = 1920;
+  const storyCtx = story.getContext("2d");
+  storyCtx.fillStyle = "#0025ff";
+  storyCtx.fillRect(0, 0, story.width, story.height);
+  storyCtx.strokeStyle = "#ffffff";
+  storyCtx.lineWidth = 10;
+  storyCtx.strokeRect(70, 70, 940, 1780);
+  storyCtx.strokeRect(120, 125, 840, 1670);
+  drawPixelMark(storyCtx, 770, 185, 1.3);
+  drawPixelMark(storyCtx, 120, 1450, 0.9);
+  drawPixelMark(storyCtx, 800, 1510, 0.9);
+
+  drawStoryLine(storyCtx, "ZNWR", 150, 210, 52);
+  drawStoryLine(storyCtx, "ARCADE", 150, 305, 112);
+  drawStoryLine(storyCtx, "SALE", 150, 420, 112);
+  drawStoryLine(storyCtx, "10-12 ИЮЛЯ", 150, 540, 46);
+  drawStoryLine(storyCtx, "ХЛЕБОЗАВОД, НЕМИГА", 150, 610, 36);
+
+  storyCtx.fillStyle = "#ffffff";
+  storyCtx.fillRect(150, 700, 780, 8);
+  drawStoryLine(storyCtx, "Я УЧАСТВУЮ В", 150, 800, 54);
+  drawStoryLine(storyCtx, "GARAGE + SAMPLE SALE", 150, 890, 50);
+  drawStoryLine(storyCtx, "СКИДКИ 20-90%", 150, 980, 82);
+
+  storyCtx.fillStyle = "#ffffff";
+  storyCtx.fillRect(150, 1050, 780, 280);
+  storyCtx.fillStyle = "#0025ff";
+  drawStoryLine(storyCtx, ratingText, 540, 1115, 68, "center", "#0025ff");
+  drawStoryLine(storyCtx, `${currentRating} RATING PTS`, 540, 1200, 50, "center", "#0025ff");
+  drawStoryLine(storyCtx, `${gamesDone}/3 GAMES · ${totalSeconds} SEC`, 540, 1260, 40, "center", "#0025ff");
+  drawStoryLine(storyCtx, `BEST ${currentGame}`, 540, 1310, 34, "center", "#0025ff");
+
+  drawStoryLine(storyCtx, `ШАНС НА ХУДИ X${chanceMultiplier()}`, 150, 1430, 52);
+  drawStoryLine(storyCtx, "ЗАХОДИ В БОТА:", 150, 1580, 44);
+  drawStoryLine(storyCtx, botShareUrl.replace(/^https?:\/\//, ""), 150, 1660, 48);
+  drawCenteredText(storyCtx, "PLAY / SHARE / WIN", 1775, 42);
+  return new Promise((resolve, reject) => {
+    story.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Story image could not be created"));
+    }, "image/png");
+  });
+}
+
+async function shareToInstagram() {
+  instagramShareButton.disabled = true;
+  prizeShareButton.disabled = true;
+  instagramShareButton.textContent = "MAKING PNG";
+  prizeShareButton.textContent = "MAKING PNG";
+  try {
+    const blob = await shareImageBlob();
+    const file = new File([blob], "znwr-arcade-sale.png", { type: "image/png" });
+    const shareData = {
+      title: "ZNWR Arcade Sale",
+      text: `Я участвую в ZNWR Arcade Sale. Заходи в бота: ${botShareUrl}`,
+      files: [file],
+    };
+
+    if (navigator.canShare?.(shareData)) {
+      instagramShareButton.textContent = "OPEN SHARE";
+      prizeShareButton.textContent = "OPEN SHARE";
+      await navigator.share(shareData);
+    } else {
+      const link = document.createElement("a");
+      const objectUrl = URL.createObjectURL(blob);
+      link.href = objectUrl;
+      link.download = "znwr-arcade-sale.png";
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1200);
+    }
+
+    localStorage.setItem(repostStorageKey, "on");
+    updateChanceUi();
+    updateResultPanel();
+    renderRating();
+    logEvent("instagram_share_intent", { chance_multiplier: 2 });
+    tg?.HapticFeedback?.notificationOccurred("success");
+  } catch (error) {
+    updateChanceUi();
+    updateResultPanel();
+    logEvent("instagram_share_cancelled");
+  }
+}
+
 function unlockPrize() {
-  const promo = choosePromo();
-  promoCodeNode.textContent = promo;
+  recordRatingResult("win");
+  updateResultPanel();
   prizePanel.hidden = false;
   gameoverPanel.hidden = true;
   setMode("prize");
   softenMusic();
   playWinJingle();
-  logEvent("promo_unlocked", { promo });
+  const aggregate = aggregateLocalRating();
+  logEvent("game_complete", {
+    total_rating: aggregate?.rating || 0,
+    games_done: aggregate?.gamesDone || 0,
+    rating_place: localRatingPlace() || "",
+    chance_multiplier: chanceMultiplier(),
+  });
   tg?.HapticFeedback?.notificationOccurred("success");
 }
 
 function gameOver() {
+  recordRatingResult("game_over");
   gameoverPanel.hidden = false;
   prizePanel.hidden = true;
   setMode("gameover");
@@ -307,7 +689,6 @@ function logEvent(eventName, extra = {}) {
     mode: state.mode,
     game_type: state.gameType,
     sound_enabled: state.soundEnabled,
-    promo: state.promo || "",
     app_url: window.location.href,
     user_agent: navigator.userAgent,
     telegram_init_data: tg?.initData || "",
@@ -638,11 +1019,13 @@ function addParticlesNormalized(nx, ny) {
 function positionedAliens() {
   const invaders = state.invaders;
   if (!invaders) return [];
+  const spacing = 0.12;
+  const startX = 0.5 - ((invaders.cols - 1) * spacing) / 2;
   return invaders.aliens.map((alien) => ({
     ...alien,
     ref: alien,
-    cx: 0.22 + alien.x * 0.112 + invaders.alienOffsetX,
-    cy: 0.16 + alien.y * 0.09 + invaders.alienOffsetY,
+    cx: startX + alien.x * spacing + invaders.alienOffsetX,
+    cy: 0.18 + alien.y * 0.12 + invaders.alienOffsetY,
   }));
 }
 
@@ -667,29 +1050,29 @@ function fireInvaderShot() {
 function updateInvadersGame(delta) {
   const invaders = state.invaders;
   if (!invaders) return;
-  invaders.playerX = Math.max(0.08, Math.min(0.92, invaders.playerX + invaders.playerDir * delta * 0.72));
+  invaders.playerX = Math.max(0.08, Math.min(0.92, invaders.playerX + invaders.playerDir * delta * 0.92));
   invaders.alienOffsetX += invaders.alienDir * invaders.alienSpeed * delta;
 
-  if (invaders.alienOffsetX > 0.08 || invaders.alienOffsetX < -0.08) {
+  if (invaders.alienOffsetX > 0.1 || invaders.alienOffsetX < -0.1) {
     invaders.alienDir *= -1;
-    invaders.alienOffsetY += 0.045;
-    invaders.alienSpeed += 0.018;
+    invaders.alienOffsetY += 0.025;
+    invaders.alienSpeed = Math.min(0.13, invaders.alienSpeed + 0.006);
   }
 
   if (invaders.shot) {
-    invaders.shot.y -= delta * 0.92;
+    invaders.shot.y -= delta * 1.18;
     if (invaders.shot.y < 0.02) invaders.shot = null;
   }
 
   const liveAliens = positionedAliens().filter((alien) => alien.alive);
-  if (liveAliens.some((alien) => alien.cy > 0.78)) {
+  if (liveAliens.some((alien) => alien.cy > 0.9)) {
     gameOver();
     return;
   }
 
   if (invaders.shot) {
     const hit = liveAliens.find((alien) => {
-      return Math.abs(alien.cx - invaders.shot.x) < 0.055 && Math.abs(alien.cy - invaders.shot.y) < 0.042;
+      return Math.abs(alien.cx - invaders.shot.x) < 0.076 && Math.abs(alien.cy - invaders.shot.y) < 0.06;
     });
     if (hit) {
       hit.ref.alive = false;
@@ -761,6 +1144,7 @@ function updateBreakoutGame(delta) {
 }
 
 function updatePlaying(delta, time) {
+  if (state.infoOpen) return;
   if (state.gameType === "pac") updatePacGame(delta, time);
   if (state.gameType === "invaders") updateInvadersGame(delta);
   if (state.gameType === "breakout") updateBreakoutGame(delta);
@@ -953,21 +1337,27 @@ function bindPad(button, x, y) {
   });
 }
 
-function copyPromo() {
-  navigator.clipboard?.writeText(state.promo);
-  copyButton.textContent = "COPIED";
-  logEvent("promo_copied");
-  tg?.HapticFeedback?.impactOccurred("light");
-  setTimeout(() => {
-    copyButton.textContent = "COPY";
-  }, 1200);
-}
-
 startButton.addEventListener("click", () => startGame());
+znwrButton.addEventListener("click", openZnwrSite);
 againButton.addEventListener("click", () => startGame());
+otherGamesButton.addEventListener("click", returnToMenu);
 restartButton.addEventListener("click", () => startGame());
-copyButton.addEventListener("click", copyPromo);
 soundButton.addEventListener("click", toggleSound);
+menuButton.addEventListener("click", returnToMenu);
+saleButton.addEventListener("click", openSaleInfo);
+ratingButton.addEventListener("click", openRating);
+ratingIntroButton.addEventListener("click", openRating);
+ratingCloseButton.addEventListener("click", closeRating);
+ratingMenuButton.addEventListener("click", returnToMenu);
+instagramShareButton.addEventListener("click", () => {
+  shareToInstagram().catch(() => {});
+});
+prizeShareButton.addEventListener("click", () => {
+  shareToInstagram().catch(() => {});
+});
+saleDetailsButton.addEventListener("click", openSaleDetails);
+saleCloseButton.addEventListener("click", closeSaleInfo);
+saleMenuButton.addEventListener("click", returnToMenu);
 
 bindPad(upButton, 0, -1);
 bindPad(downButton, 0, 1);
@@ -1021,9 +1411,30 @@ window.addEventListener("resize", resize);
 
 resize();
 resetGame();
-if (state.promo) {
-  promoCodeNode.textContent = state.promo;
+if (urlParams.get("debugResult") === "1") {
+  localStorage.setItem(ratingStorageKey, JSON.stringify({
+    games: {
+      pac: {
+        name: localPlayerName(),
+        gameType: "pac",
+        game: gameModes.pac.label,
+        score: gameModes.pac.target,
+        seconds: 42,
+        outcome: "win",
+      },
+      invaders: {
+        name: localPlayerName(),
+        gameType: "invaders",
+        game: gameModes.invaders.label,
+        score: gameModes.invaders.target,
+        seconds: 34,
+        outcome: "win",
+      },
+    },
+  }));
+  updateResultPanel();
+  prizePanel.hidden = false;
+  setMode("prize");
 }
-
 updateSoundButton();
 requestAnimationFrame(render);

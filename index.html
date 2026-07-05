@@ -21,13 +21,23 @@
 
         <section class="cabinet" aria-label="Аркадный автомат ZNWR">
           <div class="cabinet-marquee">
-            <span>ZNWR</span>
-            <strong>ARCADE SALE</strong>
+            <span>ZNWR ARCADE SALE</span>
+            <strong>GARAGE<br />MACHINE</strong>
           </div>
           <div class="cabinet-screen">
             <div class="scanline"></div>
             <p class="cabinet-kicker">1 PLAYER</p>
-            <p class="cabinet-title">GARAGE<br />MACHINE</p>
+            <div class="sale-card">
+              <p>GARAGE + SAMPLE SALE</p>
+              <strong>20-90%</strong>
+              <span>10-12 ИЮЛЯ · ХЛЕБОЗАВОД, НЕМИГА</span>
+            </div>
+            <div class="raffle-card">
+              <p>РОЗЫГРЫШ ХУДИ</p>
+              <span>ПРИЗ: ХУДИ ZNWR</span>
+              <span>РЕЙТИНГ = ЛУЧШИЕ РЕЗУЛЬТАТЫ 3 ИГР</span>
+              <span>РЕПОСТ СТОРИС = ШАНС X2</span>
+            </div>
             <section class="panel intro-panel" id="introPanel">
               <p class="kicker">SELECT GAME</p>
               <div class="game-menu" aria-label="Выбор игры">
@@ -35,7 +45,11 @@
                 <button class="game-option" data-game="invaders" type="button">CODE INVADERS</button>
                 <button class="game-option" data-game="breakout" type="button">PROMO BREAKOUT</button>
               </div>
-              <button class="primary" id="startButton" type="button">START</button>
+              <div class="intro-actions">
+                <button class="primary" id="startButton" type="button">START</button>
+                <button class="secondary compact" id="ratingIntroButton" type="button">RATING</button>
+                <button class="secondary compact" id="znwrButton" type="button">ZNWR</button>
+              </div>
             </section>
           </div>
           <div class="cabinet-controls" aria-hidden="true">
@@ -51,12 +65,48 @@
 
         <button class="sound-toggle" id="soundButton" type="button" aria-label="Выключить звук">SOUND ON</button>
 
-        <section class="panel prize-panel" id="prizePanel" hidden>
-          <p class="kicker">PROMO UNLOCKED</p>
-          <h2 id="promoCode">ZNWR-1986</h2>
+        <div class="game-tools" id="gameTools">
+          <button class="tool-button" id="menuButton" type="button">MENU</button>
+          <button class="tool-button" id="ratingButton" type="button">RATING</button>
+          <button class="tool-button" id="saleButton" type="button">SALE INFO</button>
+        </div>
+
+        <section class="panel rating-panel" id="ratingPanel" hidden>
+          <p class="kicker">PUBLIC RATING</p>
+          <h2>TOP PLAYERS</h2>
+          <p class="rating-prize">ОБЩИЙ РЕЙТИНГ = СУММА ЛУЧШИХ РЕЗУЛЬТАТОВ 3 ИГР. PAC X1 · CODE X1.12 · BREAKOUT X1.06 + БОНУС ЗА СКОРОСТЬ.</p>
+          <p class="rating-boost" id="chanceText">ШАНС В РОЗЫГРЫШЕ: X1</p>
+          <ol class="rating-list" id="ratingList"></ol>
           <div class="actions">
-            <button class="primary" id="copyButton" type="button">COPY</button>
-            <button class="secondary" id="againButton" type="button">AGAIN</button>
+            <button class="primary" id="instagramShareButton" type="button">SHARE TO INSTA</button>
+            <button class="primary" id="ratingCloseButton" type="button">BACK</button>
+            <button class="secondary" id="ratingMenuButton" type="button">MENU</button>
+          </div>
+        </section>
+
+        <section class="panel sale-panel" id="salePanel" hidden>
+          <p class="kicker">ZNWR SALE</p>
+          <h2>GARAGE + SAMPLE SALE</h2>
+          <p class="sale-copy">ДАТА: С 10 ПО 12 ИЮЛЯ</p>
+          <p class="sale-copy">МЕСТО: ХЛЕБОЗАВОД, НЕМИГА</p>
+          <p class="sale-copy">СКИДКИ ОТ 20% ДО 90%</p>
+          <div class="actions">
+            <button class="primary" id="saleDetailsButton" type="button">ПОДРОБНЕЕ</button>
+            <button class="primary" id="saleCloseButton" type="button">BACK</button>
+            <button class="secondary" id="saleMenuButton" type="button">MENU</button>
+          </div>
+        </section>
+
+        <section class="panel prize-panel" id="prizePanel" hidden>
+          <p class="kicker">RESULT SAVED</p>
+          <h2 id="resultPlace">#0</h2>
+          <p class="result-copy" id="resultSummary">0 PTS · 0/3 GAMES</p>
+          <p class="result-copy" id="resultBestGame">BEST GAME</p>
+          <p class="result-copy" id="resultChance">ШАНС В РОЗЫГРЫШЕ: X1</p>
+          <div class="actions">
+            <button class="primary" id="prizeShareButton" type="button">УДВОИТЬ ШАНС</button>
+            <button class="primary" id="againButton" type="button">СНОВА</button>
+            <button class="secondary" id="otherGamesButton" type="button">ДРУГИЕ ИГРЫ</button>
           </div>
         </section>
 
