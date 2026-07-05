@@ -110,6 +110,173 @@ button {
   pointer-events: none;
 }
 
+.cabinet {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: max(18px, env(safe-area-inset-top));
+  width: min(88vw, 390px);
+  height: calc(100dvh - max(30px, env(safe-area-inset-top)) - max(18px, env(safe-area-inset-bottom)));
+  min-height: 580px;
+  max-height: 900px;
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-rows: 96px minmax(310px, 1fr) 116px 46px;
+  padding: 10px 14px 0;
+  border: 5px solid var(--white);
+  background: var(--blue);
+  box-shadow:
+    10px 10px 0 rgba(255, 255, 255, 0.22),
+    inset 0 0 0 8px var(--blue),
+    inset 0 0 0 12px var(--white);
+}
+
+.cabinet::before,
+.cabinet::after {
+  content: "";
+  position: absolute;
+  bottom: -5px;
+  width: 42px;
+  height: 150px;
+  background: var(--blue);
+  border: 5px solid var(--white);
+  z-index: -1;
+}
+
+.cabinet::before {
+  left: -24px;
+  transform: skewY(-12deg);
+}
+
+.cabinet::after {
+  right: -24px;
+  transform: skewY(12deg);
+}
+
+.cabinet-marquee {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 2px;
+  margin: 10px 14px 12px;
+  border: 4px solid var(--white);
+  background: var(--white);
+  color: var(--blue);
+  text-align: center;
+  box-shadow: 5px 5px 0 var(--shadow);
+}
+
+.cabinet-marquee span {
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.cabinet-marquee strong {
+  font-size: clamp(28px, 8vw, 42px);
+  line-height: 0.86;
+  font-weight: 900;
+}
+
+.cabinet-screen {
+  position: relative;
+  margin: 0 12px;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  padding: 20px 16px 18px;
+  border: 7px solid var(--white);
+  background: var(--blue);
+  overflow: hidden;
+  box-shadow: inset 0 0 0 4px var(--blue);
+}
+
+.scanline {
+  position: absolute;
+  inset: 0;
+  opacity: 0.18;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.42) 0,
+      rgba(255, 255, 255, 0.42) 1px,
+      transparent 1px,
+      transparent 9px
+    );
+}
+
+.cabinet-kicker,
+.cabinet-title {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  text-align: center;
+  font-weight: 900;
+}
+
+.cabinet-kicker {
+  font-size: 13px;
+}
+
+.cabinet-title {
+  margin-top: 10px;
+  font-size: clamp(36px, 10vw, 54px);
+  line-height: 0.84;
+}
+
+.cabinet-controls {
+  display: grid;
+  grid-template-columns: 1fr 58px 46px 46px;
+  align-items: center;
+  gap: 16px;
+  margin: 18px 18px 0;
+  padding: 18px;
+  border: 4px solid var(--white);
+  transform: perspective(240px) rotateX(12deg);
+  transform-origin: top;
+}
+
+.coin-slot {
+  width: 70px;
+  height: 28px;
+  border: 4px solid var(--white);
+  box-shadow: inset 26px 0 0 var(--white);
+}
+
+.stick {
+  position: relative;
+  justify-self: center;
+  width: 16px;
+  height: 48px;
+  background: var(--white);
+}
+
+.stick::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -22px;
+  width: 34px;
+  height: 34px;
+  transform: translateX(-50%);
+  background: var(--white);
+}
+
+.cabinet-button {
+  width: 36px;
+  height: 36px;
+  border: 4px solid var(--white);
+  background: var(--white);
+  box-shadow: 4px 4px 0 var(--shadow);
+}
+
+.cabinet-base {
+  margin: 0 46px;
+  border-left: 22px solid transparent;
+  border-right: 22px solid transparent;
+  border-bottom: 46px solid var(--white);
+}
+
 .panel {
   position: absolute;
   z-index: 5;
@@ -127,12 +294,17 @@ button {
 }
 
 .intro-panel {
-  bottom: max(22px, calc(env(safe-area-inset-bottom) + 16px));
-  width: min(82%, 340px);
-  padding: 14px;
-  background: var(--blue);
-  border: 2px solid var(--white);
-  box-shadow: 7px 7px 0 var(--shadow);
+  position: relative;
+  z-index: 1;
+  left: auto;
+  bottom: auto;
+  width: min(100%, 270px);
+  margin-top: 20px;
+  transform: none;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 
 .game-menu {
@@ -292,7 +464,13 @@ h2 {
 }
 
 [data-state="intro"] .poster {
-  display: block;
+  display: none;
+}
+
+[data-state="playing"] .cabinet,
+[data-state="prize"] .cabinet,
+[data-state="gameover"] .cabinet {
+  display: none;
 }
 
 [data-state="playing"] .intro-panel,
@@ -326,6 +504,16 @@ h2 {
   }
 
   .intro-panel {
-    bottom: max(28px, calc(env(safe-area-inset-bottom) + 18px));
+    margin-top: 14px;
+  }
+
+  .cabinet {
+    grid-template-rows: 78px minmax(280px, 1fr) 96px 34px;
+    min-height: 540px;
+  }
+
+  .cabinet-controls {
+    margin-top: 12px;
+    padding: 14px;
   }
 }
