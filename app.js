@@ -998,11 +998,24 @@ function startMusic() {
 }
 
 // iOS не пускает звук без жеста — разблокируем аудио и заводим фоновую музыку
-// на главном экране при первом касании.
+// на главном экране при первом касании. Тихий буфер «раскрывает» WebAudio на iOS.
+let audioPrimed = false;
 function unlockAudio() {
   if (!state.soundEnabled) return;
   createMusicContext();
   music.context?.resume();
+  if (music.context && !audioPrimed) {
+    audioPrimed = true;
+    try {
+      const buffer = music.context.createBuffer(1, 1, 22050);
+      const source = music.context.createBufferSource();
+      source.buffer = buffer;
+      source.connect(music.context.destination);
+      source.start(0);
+    } catch (error) {
+      /* no-op */
+    }
+  }
   if (state.mode === "intro") startMusic();
 }
 
@@ -1683,8 +1696,9 @@ canvas.addEventListener("pointerdown", (event) => {
 
 gameButtons.forEach((button) => {
   onTap(button, () => {
-    selectGame(button.dataset.game);
+    // Тап по игре сразу её запускает (а не «выдели, потом START»).
     playTone(783.99, 0.05, 0.35);
+    startGame(button.dataset.game);
   });
 });
 
