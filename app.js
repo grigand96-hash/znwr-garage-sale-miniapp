@@ -79,6 +79,7 @@ const soundStorageKey = "znwr-garage-sale-sound";
 const ratingStorageKey = "znwr-garage-sale-rating";
 const sharesStorageKey = "znwr-garage-sale-shares";
 const legacyRepostStorageKey = "znwr-garage-sale-repost";
+const qualifiedStorageKey = "znwr-garage-sale-qualified";
 const shareBonusPoints = 150;
 const shareBonusMax = 20;
 const analyticsEndpoint = "https://script.google.com/macros/s/AKfycbyyVhu_3TZ0X9NdyFIE0B2EJiCAlF18Eglhc5w2wOOQLJQ8hELMUHsmyDUCNRUYUMr2Dg/exec";
@@ -130,11 +131,20 @@ const enemyStarts = [
   { x: 11, y: 11, dirX: -1, dirY: 0 },
 ];
 
+// Уровень pac = очистить всю карту; очков за уровень = число точек (для рейтинга).
+gameModes.pac.target = maze.reduce(
+  (sum, row) => sum + [...row].filter((cell) => cell === ".").length,
+  0,
+);
+
 const state = {
   mode: "intro",
   gameType: "pac",
   score: 0,
   target: 24,
+  level: 1,
+  flash: null,
+  enemySpeed: 3.1,
   width: 360,
   height: 640,
   tile: 22,
@@ -220,20 +230,63 @@ function selectGame(gameType) {
 function updateGameChrome() {
   const mode = gameModes[state.gameType];
   state.target = mode.target;
-  targetNode.textContent = String(mode.target).padStart(2, "0");
-  gameLabelNode.textContent = mode.label;
+  updateHud();
+}
+
+function updateHud() {
+  scoreNode.textContent = String(state.score).padStart(2, "0");
+  targetNode.textContent = String(state.level);
+  gameLabelNode.textContent = gameModes[state.gameType].label;
 }
 
 function resetGame() {
-  updateGameChrome();
   state.score = 0;
+  state.level = 1;
+  state.flash = null;
   state.gameStartedAt = Date.now();
   state.particles = [];
   state.dangerUntil = 0;
-  scoreNode.textContent = "00";
+  updateGameChrome();
+  respawnLevelObjects();
+}
+
+function respawnLevelObjects() {
   if (state.gameType === "pac") resetPacGame();
   if (state.gameType === "invaders") resetInvadersGame();
   if (state.gameType === "breakout") resetBreakoutGame();
+}
+
+// Общий для всех игр переход на следующий уровень: очки сохраняются, объекты
+// возрождаются сложнее (reset-функции читают state.level), показываем баннер.
+function levelUp() {
+  state.level += 1;
+  respawnLevelObjects();
+  updateHud();
+  if (state.level === 2 && !isQualified()) {
+    markQualified();
+    showFlash("ТЫ В РОЗЫГРЫШЕ!");
+    logEvent("raffle_qualified", { game_type: state.gameType });
+  } else if (state.level === 2) {
+    showFlash("БАЗА ПРОЙДЕНА");
+  } else {
+    showFlash(`УРОВЕНЬ ${state.level}`);
+  }
+  logEvent("level_up", { level: state.level, score: state.score });
+  softenMusic();
+  playWinJingle();
+  tg?.HapticFeedback?.notificationOccurred("success");
+}
+
+function showFlash(text) {
+  state.flash = { text, until: state.lastFrame + 1200 };
+}
+
+function isQualified() {
+  return localStorage.getItem(qualifiedStorageKey) === "on";
+}
+
+function markQualified() {
+  localStorage.setItem(qualifiedStorageKey, "on");
 }
 
 function resetPacGame() {
@@ -267,6 +320,8 @@ function resetPacGame() {
     dirX: enemy.dirX,
     dirY: enemy.dirY,
   }));
+  // Призраки быстрее с каждым уровнем.
+  state.enemySpeed = 3.1 + (state.level - 1) * 0.55;
   state.invaders = null;
   state.breakout = null;
 }
@@ -290,7 +345,9 @@ function resetInvadersGame() {
     alienDir: 1,
     alienOffsetX: 0,
     alienOffsetY: 0,
-    alienSpeed: 0.084,
+    // Стартовая скорость и шаг спуска растут с уровнем.
+    alienSpeed: 0.084 + (state.level - 1) * 0.02,
+    dropStep: 0.032 + (state.level - 1) * 0.006,
     fireCooldown: 0,
   };
   state.dots = new Set();
@@ -305,11 +362,13 @@ function resetBreakoutGame() {
       bricks.push({ x, y, alive: true });
     }
   }
+  // Мяч быстрее с каждым уровнем.
+  const speed = 1 + (state.level - 1) * 0.13;
   state.breakout = {
     paddleX: 0.5,
     paddleDir: 0,
     launched: false,
-    ball: { x: 0.5, y: 0.76, vx: 0.28, vy: -0.42 },
+    ball: { x: 0.5, y: 0.76, vx: 0.28 * speed, vy: -0.42 * speed },
     bricks,
   };
   state.dots = new Set();
@@ -580,14 +639,18 @@ function localRatingPlace() {
   return index === -1 ? null : index + 1;
 }
 
+// Очки за игру с затухающей отдачей за уровни: 1-й уровень = 1000×коэф (база),
+// каждый следующий добавляет 1/N от базы. Предела нет, но дальние уровни дают
+// мало, поэтому огромный отрыв невозможен, а «выиграть может каждый» держится.
 function calculateGameRating(result) {
   const mode = gameModes[result.gameType] || gameModes.pac;
-  const completion = Math.min(result.score, mode.target) / mode.target;
-  const base = completion * 1000;
-  const speedBonus = completion >= 1
-    ? Math.max(0, (mode.parSeconds - result.seconds) / mode.parSeconds) * 250
-    : 0;
-  return Math.round((base + speedBonus) * mode.coefficient);
+  const perLevel = mode.target;
+  const fullLevels = Math.floor(result.score / perLevel);
+  const partial = (result.score - fullLevels * perLevel) / perLevel;
+  let weight = 0;
+  for (let k = 1; k <= fullLevels; k += 1) weight += 1 / k;
+  weight += partial / (fullLevels + 1);
+  return Math.round(weight * 1000 * mode.coefficient);
 }
 
 function aggregateLocalRating() {
@@ -770,8 +833,10 @@ async function shareToInstagram() {
   }
 }
 
-function unlockPrize() {
-  recordRatingResult("win");
+// Игры бесконечные — забег всегда кончается проигрышем; показываем экран
+// результата (рейтинг, шеринг, инфо о сейле).
+function gameOver() {
+  recordRatingResult("game_over");
   updateResultPanel();
   fetchLeaderboard(true).then(() => {
     if (!prizePanel.hidden) updateResultPanel();
@@ -779,26 +844,17 @@ function unlockPrize() {
   prizePanel.hidden = false;
   gameoverPanel.hidden = true;
   setMode("prize");
-  softenMusic();
-  playWinJingle();
+  stopMusic();
+  playGameOverJingle();
   const aggregate = aggregateLocalRating();
-  logEvent("game_complete", {
+  logEvent("game_over", {
     total_rating: aggregate?.rating || 0,
     games_done: aggregate?.gamesDone || 0,
     rating_place: localRatingPlace() || "",
     share_count: shareCount(),
+    level: state.level,
+    result_score: state.score,
   });
-  tg?.HapticFeedback?.notificationOccurred("success");
-}
-
-function gameOver() {
-  recordRatingResult("game_over");
-  gameoverPanel.hidden = false;
-  prizePanel.hidden = true;
-  setMode("gameover");
-  stopMusic();
-  playGameOverJingle();
-  logEvent("game_over");
   tg?.HapticFeedback?.notificationOccurred("error");
 }
 
@@ -1071,7 +1127,7 @@ function updateEnemies(delta) {
       const choice = Math.random() < 0.72 && forward ? forward : dirs[Math.floor(Math.random() * dirs.length)];
       if (choice) beginStep(enemy, choice.x, choice.y);
     }
-    advanceActor(enemy, 3.1, delta);
+    advanceActor(enemy, state.enemySpeed, delta);
   });
 }
 
@@ -1082,7 +1138,7 @@ function collectCurrentTile() {
     scoreNode.textContent = String(state.score).padStart(2, "0");
     addParticles(state.player.x, state.player.y);
     tg?.HapticFeedback?.impactOccurred("light");
-    if (state.score >= state.target) unlockPrize();
+    if (state.dots.size === 0) levelUp();
   }
 }
 
@@ -1187,8 +1243,8 @@ function updateInvadersGame(delta) {
 
   if (invaders.alienOffsetX > 0.1 || invaders.alienOffsetX < -0.1) {
     invaders.alienDir *= -1;
-    invaders.alienOffsetY += 0.032;
-    invaders.alienSpeed = Math.min(0.15, invaders.alienSpeed + 0.0075);
+    invaders.alienOffsetY += invaders.dropStep;
+    invaders.alienSpeed = Math.min(0.15 + (state.level - 1) * 0.02, invaders.alienSpeed + 0.0075);
   }
 
   if (invaders.shot) {
@@ -1213,7 +1269,7 @@ function updateInvadersGame(delta) {
       invaders.shot = null;
       addParticlesNormalized(hit.cx, hit.cy);
       tg?.HapticFeedback?.impactOccurred("light");
-      if (state.score >= state.target) unlockPrize();
+      if (positionedAliens().every((alien) => !alien.alive)) levelUp();
     }
   }
 }
@@ -1269,7 +1325,7 @@ function updateBreakoutGame(delta) {
     scoreNode.textContent = String(state.score).padStart(2, "0");
     addParticlesNormalized(hit.cx, hit.cy);
     tg?.HapticFeedback?.impactOccurred("light");
-    if (state.score >= state.target) unlockPrize();
+    if (positionedBricks().every((brick) => !brick.alive)) levelUp();
   }
 
   if (ball.y > 1.02) gameOver();
@@ -1456,7 +1512,33 @@ function render(time = 0) {
     drawParticles(state.mode === "playing" ? delta : 0);
   }
 
+  drawFlash(time);
+
   requestAnimationFrame(render);
+}
+
+function drawFlash(time) {
+  if (!state.flash || state.mode !== "playing") return;
+  if (time > state.flash.until) {
+    state.flash = null;
+    return;
+  }
+  const remain = state.flash.until - time;
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, remain / 300);
+  const size = Math.round(state.width * 0.085);
+  ctx.font = `900 ${size}px "Courier New", monospace`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const cx = state.width / 2;
+  const cy = state.height * 0.46;
+  const boxW = ctx.measureText(state.flash.text).width + 44;
+  const boxH = size + 28;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(cx - boxW / 2, cy - boxH / 2, boxW, boxH);
+  ctx.fillStyle = "#0025ff";
+  ctx.fillText(state.flash.text, cx, cy + 2);
+  ctx.restore();
 }
 
 function bindPad(button, x, y) {
