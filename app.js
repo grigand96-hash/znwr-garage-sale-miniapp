@@ -7,6 +7,20 @@ if (tg) {
   tg.setBackgroundColor("#0025ff");
 }
 
+// Telegram WebView height differs from device 100dvh — drive layout off the real
+// available height so absolute panels never overflow / overlap.
+function syncViewportHeight() {
+  const height = tg?.viewportStableHeight || tg?.viewportHeight || window.innerHeight;
+  if (height) {
+    document.documentElement.style.setProperty("--app-h", `${Math.round(height)}px`);
+  }
+}
+
+syncViewportHeight();
+tg?.onEvent?.("viewportChanged", syncViewportHeight);
+window.addEventListener("resize", syncViewportHeight);
+window.addEventListener("orientationchange", () => window.setTimeout(syncViewportHeight, 120));
+
 const app = document.querySelector(".app");
 const canvas = document.querySelector("#game");
 const ctx = canvas.getContext("2d");

@@ -3,6 +3,8 @@
   --white: #ffffff;
   --shadow: rgba(255, 255, 255, 0.26);
   --panel: #0025ff;
+  /* Overwritten from JS with the real Telegram WebView height. */
+  --app-h: 100dvh;
 }
 
 * {
@@ -37,7 +39,7 @@ button:disabled {
 }
 
 .app {
-  min-height: 100dvh;
+  min-height: var(--app-h);
   display: grid;
   place-items: center;
   background: var(--blue);
@@ -46,9 +48,9 @@ button:disabled {
 .screen {
   position: relative;
   width: min(100vw, 470px);
-  height: 100dvh;
-  min-height: 620px;
-  max-height: 940px;
+  height: var(--app-h);
+  min-height: 0;
+  max-height: var(--app-h);
   overflow: hidden;
   background: var(--blue);
   isolation: isolate;
@@ -119,14 +121,14 @@ button:disabled {
   position: absolute;
   z-index: 3;
   left: 50%;
-  top: max(18px, env(safe-area-inset-top));
+  top: max(14px, env(safe-area-inset-top));
   width: min(88vw, 390px);
-  height: calc(100dvh - max(30px, env(safe-area-inset-top)) - max(18px, env(safe-area-inset-bottom)));
-  min-height: 580px;
+  height: calc(var(--app-h) - max(24px, env(safe-area-inset-top)) - max(14px, env(safe-area-inset-bottom)));
+  min-height: 0;
   max-height: 900px;
   transform: translateX(-50%);
   display: grid;
-  grid-template-rows: 60px minmax(310px, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   padding: 10px 14px 14px;
   border: 5px solid var(--white);
   background: var(--blue);
@@ -160,11 +162,13 @@ button:disabled {
   margin: 0 12px;
   display: grid;
   justify-items: center;
-  align-content: center;
+  align-content: safe center;
+  gap: 4px;
   padding: 16px 16px 14px;
   border: 7px solid var(--white);
   background: var(--blue);
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   box-shadow: inset 0 0 0 4px var(--blue);
 }
 
@@ -409,11 +413,16 @@ h2 {
 
 .sale-panel,
 .rating-panel,
-.rules-panel {
+.rules-panel,
+.prize-panel,
+.gameover-panel {
   top: 50%;
   bottom: auto;
   transform: translate(-50%, -50%);
   width: min(82%, 340px);
+  max-height: calc(var(--app-h) - 24px);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .sale-details {
@@ -592,25 +601,12 @@ h2 {
 }
 
 @media (max-height: 700px) {
-  .screen {
-    min-height: 100dvh;
-  }
-
   .place {
     font-size: 16px;
   }
 
-  .panel {
-    bottom: max(76px, calc(env(safe-area-inset-bottom) + 64px));
-  }
-
   .intro-panel {
     margin-top: 10px;
-  }
-
-  .cabinet {
-    grid-template-rows: 52px minmax(292px, 1fr);
-    min-height: 540px;
   }
 
   .sale-card {
