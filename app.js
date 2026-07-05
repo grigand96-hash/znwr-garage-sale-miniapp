@@ -684,9 +684,8 @@ function drawCenteredText(targetCtx, text, y, size, color = "#ffffff") {
 function shareImageBlob() {
   const rating = aggregateLocalRating();
   const currentRating = rating?.rating || 0;
-  const gamesDone = rating?.gamesDone || 0;
   const ratingPlace = localRatingPlace();
-  const ratingText = ratingPlace ? `МОЙ РЕЙТИНГ: #${ratingPlace}` : "Я В ИГРЕ";
+  const ratingText = ratingPlace ? `МОЙ РЕЙТИНГ #${ratingPlace}` : "Я В ИГРЕ";
   const story = document.createElement("canvas");
   story.width = 1080;
   story.height = 1920;
@@ -695,28 +694,35 @@ function shareImageBlob() {
   storyCtx.fillRect(0, 0, story.width, story.height);
 
   storyCtx.strokeStyle = "#ffffff";
-  storyCtx.lineWidth = 12;
+  storyCtx.lineWidth = 8;
   storyCtx.strokeRect(70, 70, 940, 1780);
-  storyCtx.lineWidth = 4;
-  storyCtx.strokeRect(98, 98, 884, 1724);
 
+  // Заголовок в белой плашке
   storyCtx.fillStyle = "#ffffff";
-  storyCtx.fillRect(150, 170, 780, 130);
-  drawCenteredText(storyCtx, "ZNWR ARCADE SALE", 240, 56, "#0025ff");
+  storyCtx.fillRect(160, 190, 760, 128);
+  drawCenteredText(storyCtx, "ZNWR ARCADE SALE", 256, 52, "#0025ff");
 
-  drawCenteredText(storyCtx, "GARAGE + SAMPLE SALE", 480, 52);
-  drawCenteredText(storyCtx, "20-90%", 660, 180);
-  drawCenteredText(storyCtx, "10-12 ИЮЛЯ · ХЛЕБОЗАВОД, НЕМИГА", 800, 38);
+  // Сейл
+  drawCenteredText(storyCtx, "GARAGE + SAMPLE SALE", 470, 46);
+  drawCenteredText(storyCtx, "10-12 ИЮЛЯ · ХЛЕБОЗАВОД", 548, 36);
+  drawCenteredText(storyCtx, "20-90%", 740, 190);
 
+  // Карточка рейтинга
   storyCtx.fillStyle = "#ffffff";
-  storyCtx.fillRect(180, 930, 720, 250);
-  drawCenteredText(storyCtx, ratingText, 1020, 62, "#0025ff");
-  drawCenteredText(storyCtx, `${currentRating} ОЧКОВ · ${gamesDone}/3 ИГР`, 1110, 42, "#0025ff");
+  storyCtx.fillRect(190, 910, 700, 230);
+  drawCenteredText(storyCtx, ratingText, 995, 56, "#0025ff");
+  drawCenteredText(storyCtx, `${currentRating} ОЧКОВ`, 1085, 62, "#0025ff");
 
-  drawCenteredText(storyCtx, "ИГРАЙ И ВЫИГРАЙ", 1330, 54);
-  drawCenteredText(storyCtx, "ПЛАЩ ИНЖЕНЕРА ZNWR", 1410, 54);
-  drawCenteredText(storyCtx, botShareUrl.replace(/^https?:\/\//, ""), 1580, 58);
-  drawCenteredText(storyCtx, "PLAY / SHARE / WIN", 1740, 34);
+  // Приз
+  drawCenteredText(storyCtx, "РОЗЫГРЫШ ПЛАЩА ИНЖЕНЕРА", 1300, 44);
+
+  // Обязательная отметка магазина
+  drawCenteredText(storyCtx, "ОТМЕТЬ НАС В СТОРИС", 1470, 40);
+  storyCtx.fillStyle = "#ffffff";
+  storyCtx.fillRect(250, 1530, 580, 118);
+  drawCenteredText(storyCtx, "@ZNWR.STORE", 1591, 56, "#0025ff");
+
+  drawCenteredText(storyCtx, "PLAY / SHARE / WIN", 1770, 32);
 
   return new Promise((resolve, reject) => {
     story.toBlob((blob) => {
@@ -736,7 +742,7 @@ async function shareToInstagram() {
     const file = new File([blob], "znwr-arcade-sale.png", { type: "image/png" });
     const shareData = {
       title: "ZNWR Arcade Sale",
-      text: `Я участвую в ZNWR Arcade Sale. Заходи в бота: ${botShareUrl}`,
+      text: "Отметь @znwr.store в сторис — розыгрыш плаща инженера на ZNWR Arcade Sale!",
       files: [file],
     };
 
