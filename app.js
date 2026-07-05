@@ -714,15 +714,14 @@ function shareImageBlob() {
   drawCenteredText(storyCtx, `${currentRating} ОЧКОВ`, 1085, 62, "#0025ff");
 
   // Приз
-  drawCenteredText(storyCtx, "РОЗЫГРЫШ ПЛАЩА ИНЖЕНЕРА", 1300, 44);
+  drawCenteredText(storyCtx, "РОЗЫГРЫШ ПЛАЩА ИНЖЕНЕРА", 1340, 46);
 
-  // Обязательная отметка магазина
-  drawCenteredText(storyCtx, "ОТМЕТЬ НАС В СТОРИС", 1470, 40);
+  // Подпись магазина (призыв отметить — в самом приложении, не на сторис)
   storyCtx.fillStyle = "#ffffff";
-  storyCtx.fillRect(250, 1530, 580, 118);
-  drawCenteredText(storyCtx, "@ZNWR.STORE", 1591, 56, "#0025ff");
+  storyCtx.fillRect(285, 1500, 510, 115);
+  drawCenteredText(storyCtx, "@ZNWR.STORE", 1560, 54, "#0025ff");
 
-  drawCenteredText(storyCtx, "PLAY / SHARE / WIN", 1770, 32);
+  drawCenteredText(storyCtx, "PLAY / SHARE / WIN", 1750, 32);
 
   return new Promise((resolve, reject) => {
     story.toBlob((blob) => {
