@@ -392,7 +392,6 @@ function startGame(gameType = state.gameType) {
 }
 
 function returnToMenu() {
-  stopMusic();
   state.infoOpen = false;
   salePanel.hidden = true;
   ratingPanel.hidden = true;
@@ -401,6 +400,7 @@ function returnToMenu() {
   rulesPanel.hidden = true;
   setMode("intro");
   resetGame();
+  startMusic();
   logEvent("menu_opened");
   tg?.HapticFeedback?.impactOccurred("light");
 }
@@ -979,6 +979,15 @@ function startMusic() {
   music.timer = window.setInterval(musicTick, (60 / music.tempo) * 500);
 }
 
+// iOS не пускает звук без жеста — разблокируем аудио и заводим фоновую музыку
+// на главном экране при первом касании.
+function unlockAudio() {
+  if (!state.soundEnabled) return;
+  createMusicContext();
+  music.context?.resume();
+  if (state.mode === "intro") startMusic();
+}
+
 function stopMusic() {
   if (music.timer) window.clearInterval(music.timer);
   music.timer = null;
@@ -997,7 +1006,7 @@ function toggleSound() {
   state.soundEnabled = !state.soundEnabled;
   localStorage.setItem(soundStorageKey, state.soundEnabled ? "on" : "off");
   updateSoundButton();
-  if (state.soundEnabled && state.mode === "playing") startMusic();
+  if (state.soundEnabled) startMusic();
   if (!state.soundEnabled) stopMusic();
   logEvent(state.soundEnabled ? "sound_on" : "sound_off");
 }
@@ -1550,6 +1559,8 @@ function bindPad(button, x, y) {
     if (state.gameType !== "pac" && x !== 0) setDirection(0, 0);
   });
 }
+
+window.addEventListener("pointerdown", unlockAudio);
 
 startButton.addEventListener("click", () => startGame());
 znwrButton.addEventListener("click", openZnwrSite);
