@@ -290,7 +290,7 @@ function resetInvadersGame() {
     alienDir: 1,
     alienOffsetX: 0,
     alienOffsetY: 0,
-    alienSpeed: 0.075,
+    alienSpeed: 0.084,
     fireCooldown: 0,
   };
   state.dots = new Set();
@@ -1187,8 +1187,8 @@ function updateInvadersGame(delta) {
 
   if (invaders.alienOffsetX > 0.1 || invaders.alienOffsetX < -0.1) {
     invaders.alienDir *= -1;
-    invaders.alienOffsetY += 0.025;
-    invaders.alienSpeed = Math.min(0.13, invaders.alienSpeed + 0.006);
+    invaders.alienOffsetY += 0.032;
+    invaders.alienSpeed = Math.min(0.15, invaders.alienSpeed + 0.0075);
   }
 
   if (invaders.shot) {
