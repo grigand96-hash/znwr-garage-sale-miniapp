@@ -120,7 +120,7 @@ function doGet(e) {
 }
 
 function handleRatingGet_(spreadsheetId, e) {
-  const limit = Math.min(Math.max(Number(e?.parameter?.limit) || 10, 1), 50);
+  const limit = Math.min(Math.max(Number(e?.parameter?.limit) || 10, 1), 200);
   const sheet = getRatingSheet_(spreadsheetId);
   const rows = sheet.getDataRange().getValues().slice(1);
   const players = rows
