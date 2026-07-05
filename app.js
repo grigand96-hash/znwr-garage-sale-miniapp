@@ -38,6 +38,7 @@ const rulesButton = document.querySelector("#rulesButton");
 const rulesCloseButton = document.querySelector("#rulesCloseButton");
 const rulesMenuButton = document.querySelector("#rulesMenuButton");
 const tgShareButton = document.querySelector("#tgShareButton");
+const prizeTgButton = document.querySelector("#prizeTgButton");
 const prizeSaleButton = document.querySelector("#prizeSaleButton");
 const againButton = document.querySelector("#againButton");
 const otherGamesButton = document.querySelector("#otherGamesButton");
@@ -58,7 +59,10 @@ const rightButton = document.querySelector("#rightButton");
 
 const soundStorageKey = "znwr-garage-sale-sound";
 const ratingStorageKey = "znwr-garage-sale-rating";
-const repostStorageKey = "znwr-garage-sale-repost";
+const sharesStorageKey = "znwr-garage-sale-shares";
+const legacyRepostStorageKey = "znwr-garage-sale-repost";
+const shareBonusPoints = 150;
+const shareBonusMax = 20;
 const analyticsEndpoint = "https://script.google.com/macros/s/AKfycbyyVhu_3TZ0X9NdyFIE0B2EJiCAlF18Eglhc5w2wOOQLJQ8hELMUHsmyDUCNRUYUMr2Dg/exec";
 const urlParams = new URLSearchParams(window.location.search);
 const trafficSource = urlParams.get("src") || urlParams.get("utm_source") || "";
@@ -372,16 +376,18 @@ function closeRules() {
 
 function shareToTelegram() {
   const place = localRatingPlace();
-  const text = place
-    ? `Я #${place} в рейтинге ZNWR Arcade Sale. Сыграй и попробуй обогнать — скидки 20-90% и розыгрыш плаща инженера!`
-    : "Играю в ZNWR Arcade Sale — скидки 20-90% и розыгрыш плаща инженера. Залетай!";
+  const intro = place ? `Я #${place} в рейтинге ZNWR Arcade Sale! ` : "";
+  const text = `${intro}ZNWR GARAGE + SAMPLE SALE — 10-12 июля, Хлебозавод (Немига). Скидки 20-90% и розыгрыш плаща инженера. Сыграй в аркаду и попади в рейтинг!`;
   const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(botShareUrl)}&text=${encodeURIComponent(text)}`;
-  logEvent("tg_share_intent", { rating_place: place || "" });
+  registerShare("telegram");
   if (tg?.openTelegramLink) {
     tg.openTelegramLink(shareUrl);
   } else {
     window.open(shareUrl, "_blank", "noopener");
   }
+  updateShareUi();
+  updateResultPanel();
+  if (!ratingPanel.hidden) renderRating();
   tg?.HapticFeedback?.impactOccurred("light");
 }
 
@@ -423,18 +429,38 @@ function getLocalBest() {
   return aggregateLocalRating();
 }
 
-function hasRepostBoost() {
-  return localStorage.getItem(repostStorageKey) === "on";
+function shareCount() {
+  const stored = Number(localStorage.getItem(sharesStorageKey));
+  if (Number.isFinite(stored) && stored > 0) return Math.min(stored, shareBonusMax);
+  return localStorage.getItem(legacyRepostStorageKey) === "on" ? 1 : 0;
 }
 
-function chanceMultiplier() {
-  return hasRepostBoost() ? 2 : 1;
+function sharePoints() {
+  return shareCount() * shareBonusPoints;
 }
 
-function updateChanceUi() {
-  chanceText.textContent = `ШАНС В РОЗЫГРЫШЕ: X${chanceMultiplier()}`;
-  instagramShareButton.textContent = hasRepostBoost() ? "X2 АКТИВЕН" : "СТОРИС В INSTA";
+function shareBonusText() {
+  return shareCount() > 0
+    ? `РЕПОСТЫ: ${shareCount()} · БОНУС +${sharePoints()} PTS`
+    : `КАЖДЫЙ РЕПОСТ = +${shareBonusPoints} PTS К РЕЙТИНГУ`;
+}
+
+function registerShare(source) {
+  const next = Math.min(shareCount() + 1, shareBonusMax);
+  localStorage.setItem(sharesStorageKey, String(next));
+  logEvent("share_bonus", {
+    share_source: source,
+    share_count: next,
+    share_points: next * shareBonusPoints,
+  });
+}
+
+function updateShareUi() {
+  chanceText.textContent = shareBonusText();
+  instagramShareButton.textContent = "УВЕЛИЧИТЬ ШАНСЫ (INSTA)";
   instagramShareButton.disabled = false;
+  prizeShareButton.textContent = "УВЕЛИЧИТЬ ШАНСЫ (INSTA)";
+  prizeShareButton.disabled = false;
 }
 
 function saveLocalBest(result) {
@@ -467,7 +493,7 @@ function recordRatingResult(outcome) {
     game_rating: calculateGameRating(result),
     total_rating: aggregate?.rating || 0,
     games_done: aggregate?.gamesDone || 0,
-    chance_multiplier: chanceMultiplier(),
+    share_count: shareCount(),
   });
 }
 
@@ -488,7 +514,6 @@ function fetchLeaderboard(force = false) {
           gamesDone: Number(player.gamesDone) || 0,
           bestGame: String(player.bestGame || gameModes.pac.label),
           totalSeconds: Number(player.totalSeconds) || 0,
-          chance: Number(player.chance) || 1,
         }));
         serverLeadersLoadedAt = Date.now();
       }
@@ -505,7 +530,7 @@ function combinedRatingRows() {
   const localKey = localPlayerKey();
   const localRating = aggregateLocalRating();
   const boostedRating = localRating
-    ? { ...localRating, key: localKey, chance: chanceMultiplier(), isLocal: true }
+    ? { ...localRating, key: localKey, isLocal: true }
     : null;
   const base = serverLeaders
     ? serverLeaders.filter((row) => row.key !== localKey)
@@ -513,7 +538,7 @@ function combinedRatingRows() {
   const serverSelf = serverLeaders?.find((row) => row.key === localKey) || null;
   const rows = base.slice();
   if (boostedRating && serverSelf && serverSelf.rating > boostedRating.rating) {
-    rows.push({ ...serverSelf, chance: boostedRating.chance, isLocal: true });
+    rows.push({ ...serverSelf, isLocal: true });
   } else if (boostedRating) {
     rows.push(boostedRating);
   } else if (serverSelf) {
@@ -551,7 +576,7 @@ function aggregateLocalRating() {
   const rating = getStoredRating();
   const results = Object.values(rating.games || {});
   if (!results.length) return null;
-  const totalRating = results.reduce((sum, result) => sum + calculateGameRating(result), 0);
+  const totalRating = results.reduce((sum, result) => sum + calculateGameRating(result), 0) + sharePoints();
   const totalSeconds = results.reduce((sum, result) => sum + result.seconds, 0);
   const best = results
     .slice()
@@ -578,14 +603,14 @@ function updateResultPanel() {
     resultSummaryNode.textContent = `${aggregate.rating} PTS · ${aggregate.gamesDone}/3 ИГР`;
     resultBestGameNode.textContent = `ЛУЧШАЯ: ${aggregate.bestGame}`;
   }
-  resultChanceNode.textContent = `ШАНС В РОЗЫГРЫШЕ: X${chanceMultiplier()}`;
-  prizeShareButton.textContent = hasRepostBoost() ? "ШАНС X2 АКТИВЕН" : "УДВОИТЬ ШАНС";
+  resultChanceNode.textContent = shareBonusText();
+  prizeShareButton.textContent = "УВЕЛИЧИТЬ ШАНСЫ (INSTA)";
   prizeShareButton.disabled = false;
 }
 
 function renderRating() {
   ratingList.innerHTML = "";
-  updateChanceUi();
+  updateShareUi();
   const rows = leaderboardRows();
   if (!rows.length) {
     const item = document.createElement("li");
@@ -606,7 +631,6 @@ function renderRating() {
     game.className = "meta";
     game.textContent = `${row.gamesDone}/3 · ${row.bestGame}`;
     score.textContent = `${row.rating} PTS`;
-    if (row.chance === 2) score.textContent += " X2";
     player.appendChild(game);
     item.append(place, player, score);
     ratingList.appendChild(item);
@@ -639,70 +663,43 @@ function drawCenteredText(targetCtx, text, y, size, color = "#ffffff") {
   targetCtx.fillText(text, 540, y);
 }
 
-function drawStoryLine(targetCtx, text, x, y, size, align = "left", color = "#ffffff") {
-  targetCtx.fillStyle = color;
-  targetCtx.font = `900 ${size}px Courier New, monospace`;
-  targetCtx.textAlign = align;
-  targetCtx.textBaseline = "middle";
-  targetCtx.fillText(text, x, y);
-}
-
-function drawPixelMark(targetCtx, x, y, scale = 1) {
-  targetCtx.fillStyle = "#ffffff";
-  const s = 28 * scale;
-  targetCtx.fillRect(x + s, y, s, s);
-  targetCtx.fillRect(x + s * 3, y, s, s);
-  targetCtx.fillRect(x + s * 2, y + s, s, s);
-  targetCtx.fillRect(x + s, y + s * 2, s, s);
-  targetCtx.fillRect(x + s * 3, y + s * 2, s, s);
-}
-
 function shareImageBlob() {
   const rating = aggregateLocalRating();
   const currentRating = rating?.rating || 0;
-  const currentGame = rating?.bestGame || gameModes[state.gameType].label;
   const gamesDone = rating?.gamesDone || 0;
-  const totalSeconds = rating?.totalSeconds || getPlaySeconds();
   const ratingPlace = localRatingPlace();
-  const ratingText = ratingPlace ? `МОЙ РЕЙТИНГ #${ratingPlace}` : "Я В РЕЙТИНГЕ";
+  const ratingText = ratingPlace ? `МОЙ РЕЙТИНГ: #${ratingPlace}` : "Я В ИГРЕ";
   const story = document.createElement("canvas");
   story.width = 1080;
   story.height = 1920;
   const storyCtx = story.getContext("2d");
   storyCtx.fillStyle = "#0025ff";
   storyCtx.fillRect(0, 0, story.width, story.height);
+
   storyCtx.strokeStyle = "#ffffff";
-  storyCtx.lineWidth = 10;
+  storyCtx.lineWidth = 12;
   storyCtx.strokeRect(70, 70, 940, 1780);
-  storyCtx.strokeRect(120, 125, 840, 1670);
-  drawPixelMark(storyCtx, 770, 185, 1.3);
-  drawPixelMark(storyCtx, 120, 1450, 0.9);
-  drawPixelMark(storyCtx, 800, 1510, 0.9);
-
-  drawStoryLine(storyCtx, "ZNWR", 150, 210, 52);
-  drawStoryLine(storyCtx, "ARCADE", 150, 305, 112);
-  drawStoryLine(storyCtx, "SALE", 150, 420, 112);
-  drawStoryLine(storyCtx, "10-12 ИЮЛЯ", 150, 540, 46);
-  drawStoryLine(storyCtx, "ХЛЕБОЗАВОД, НЕМИГА", 150, 610, 36);
+  storyCtx.lineWidth = 4;
+  storyCtx.strokeRect(98, 98, 884, 1724);
 
   storyCtx.fillStyle = "#ffffff";
-  storyCtx.fillRect(150, 700, 780, 8);
-  drawStoryLine(storyCtx, "Я УЧАСТВУЮ В", 150, 800, 54);
-  drawStoryLine(storyCtx, "GARAGE + SAMPLE SALE", 150, 890, 50);
-  drawStoryLine(storyCtx, "СКИДКИ 20-90%", 150, 980, 82);
+  storyCtx.fillRect(150, 170, 780, 130);
+  drawCenteredText(storyCtx, "ZNWR ARCADE SALE", 240, 56, "#0025ff");
+
+  drawCenteredText(storyCtx, "GARAGE + SAMPLE SALE", 480, 52);
+  drawCenteredText(storyCtx, "20-90%", 660, 180);
+  drawCenteredText(storyCtx, "10-12 ИЮЛЯ · ХЛЕБОЗАВОД, НЕМИГА", 800, 38);
 
   storyCtx.fillStyle = "#ffffff";
-  storyCtx.fillRect(150, 1050, 780, 280);
-  storyCtx.fillStyle = "#0025ff";
-  drawStoryLine(storyCtx, ratingText, 540, 1115, 68, "center", "#0025ff");
-  drawStoryLine(storyCtx, `${currentRating} RATING PTS`, 540, 1200, 50, "center", "#0025ff");
-  drawStoryLine(storyCtx, `${gamesDone}/3 ИГР · ${totalSeconds} СЕК`, 540, 1260, 40, "center", "#0025ff");
-  drawStoryLine(storyCtx, `ЛУЧШАЯ: ${currentGame}`, 540, 1310, 34, "center", "#0025ff");
+  storyCtx.fillRect(180, 930, 720, 250);
+  drawCenteredText(storyCtx, ratingText, 1020, 62, "#0025ff");
+  drawCenteredText(storyCtx, `${currentRating} PTS · ${gamesDone}/3 ИГР`, 1110, 42, "#0025ff");
 
-  drawStoryLine(storyCtx, `ШАНС НА ПЛАЩ X${chanceMultiplier()}`, 150, 1430, 52);
-  drawStoryLine(storyCtx, "ЗАХОДИ В БОТА:", 150, 1580, 44);
-  drawStoryLine(storyCtx, botShareUrl.replace(/^https?:\/\//, ""), 150, 1660, 48);
-  drawCenteredText(storyCtx, "PLAY / SHARE / WIN", 1775, 42);
+  drawCenteredText(storyCtx, "ИГРАЙ И ВЫИГРАЙ", 1330, 54);
+  drawCenteredText(storyCtx, "ПЛАЩ ИНЖЕНЕРА ZNWR", 1410, 54);
+  drawCenteredText(storyCtx, botShareUrl.replace(/^https?:\/\//, ""), 1580, 58);
+  drawCenteredText(storyCtx, "PLAY / SHARE / WIN", 1740, 34);
+
   return new Promise((resolve, reject) => {
     story.toBlob((blob) => {
       if (blob) resolve(blob);
@@ -738,14 +735,13 @@ async function shareToInstagram() {
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1200);
     }
 
-    localStorage.setItem(repostStorageKey, "on");
-    updateChanceUi();
+    registerShare("instagram");
+    updateShareUi();
     updateResultPanel();
     renderRating();
-    logEvent("instagram_share_intent", { chance_multiplier: 2 });
     tg?.HapticFeedback?.notificationOccurred("success");
   } catch (error) {
-    updateChanceUi();
+    updateShareUi();
     updateResultPanel();
     logEvent("instagram_share_cancelled");
   }
@@ -767,7 +763,7 @@ function unlockPrize() {
     total_rating: aggregate?.rating || 0,
     games_done: aggregate?.gamesDone || 0,
     rating_place: localRatingPlace() || "",
-    chance_multiplier: chanceMultiplier(),
+    share_count: shareCount(),
   });
   tg?.HapticFeedback?.notificationOccurred("success");
 }
@@ -1478,6 +1474,7 @@ rulesButton.addEventListener("click", openRules);
 rulesCloseButton.addEventListener("click", closeRules);
 rulesMenuButton.addEventListener("click", returnToMenu);
 tgShareButton.addEventListener("click", shareToTelegram);
+prizeTgButton.addEventListener("click", shareToTelegram);
 prizeSaleButton.addEventListener("click", () => {
   prizePanel.hidden = true;
   openSaleInfo();

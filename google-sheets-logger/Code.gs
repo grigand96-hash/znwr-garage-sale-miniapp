@@ -45,8 +45,11 @@ const RATING_HEADERS = [
   "total_seconds",
   "chance_multiplier",
   "updated_at",
+  "share_count",
 ];
 const GAME_TYPES = ["pac", "invaders", "breakout"];
+const SHARE_BONUS_POINTS = 150;
+const SHARE_BONUS_MAX = 20;
 const GAME_LABELS = {
   pac: "PAC SALE",
   invaders: "CODE INVADERS",
@@ -138,7 +141,7 @@ function handleRatingGet_(spreadsheetId, e) {
 
 function handleRatingEvent_(spreadsheetId, payload, verified, tokenConfigured) {
   const event = payload.event || "";
-  if (event !== "rating_result" && event !== "instagram_share_intent") return;
+  if (event !== "rating_result" && event !== "share_bonus" && event !== "instagram_share_intent") return;
   // With BOT_TOKEN configured, only Telegram-signed events may enter the public rating.
   if (tokenConfigured && !verified) return;
   const key = playerKey_(payload);
@@ -194,6 +197,7 @@ function emptyRatingRecord_(key) {
       breakout: { rating: 0, seconds: 0 },
     },
     chance: 1,
+    shareCount: 0,
   };
 }
 
@@ -209,6 +213,7 @@ function ratingRecordFromRow_(row) {
       breakout: { rating: Number(row[8]) || 0, seconds: Number(row[9]) || 0 },
     },
     chance: Number(row[14]) || 1,
+    shareCount: Number(row[16]) || 0,
   };
 }
 
@@ -217,6 +222,7 @@ function applyPayloadToRecord_(record, payload) {
   record.userId = String(payload.telegram_user_id || record.userId || "");
   record.username = String(payload.telegram_username || record.username || "");
   record.chance = Math.max(record.chance, Number(payload.chance_multiplier) || 1);
+  record.shareCount = Math.max(record.shareCount, Math.min(Number(payload.share_count) || 0, SHARE_BONUS_MAX));
 
   if (payload.event !== "rating_result") return;
   const gameType = String(payload.game_type || "");
@@ -232,7 +238,10 @@ function applyPayloadToRecord_(record, payload) {
 
 function ratingRowFromRecord_(record) {
   const playedGames = GAME_TYPES.filter((type) => record.games[type].rating > 0);
-  const totalRating = playedGames.reduce((sum, type) => sum + record.games[type].rating, 0);
+  // Share bonus counts only after at least one game is played (raffle rule).
+  const totalRating = playedGames.length
+    ? playedGames.reduce((sum, type) => sum + record.games[type].rating, 0) + record.shareCount * SHARE_BONUS_POINTS
+    : 0;
   const totalSeconds = playedGames.reduce((sum, type) => sum + record.games[type].seconds, 0);
   const bestType = playedGames
     .slice()
@@ -254,6 +263,7 @@ function ratingRowFromRecord_(record) {
     totalSeconds,
     record.chance,
     new Date(),
+    record.shareCount,
   ];
 }
 

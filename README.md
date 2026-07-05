@@ -29,9 +29,10 @@ Deploy that Apps Script as a Web App, then paste the Web App URL into
 `analyticsEndpoint` in `app.js`.
 
 The app logs game starts, rating results, sale-info opens, site clicks, and
-Instagram share intents. The public ranking is based on the sum of each
-player's best result across the three games, with game coefficients and a
-speed bonus.
+share intents. The public ranking is based on the sum of each player's best
+result across the three games (with game coefficients and a speed bonus),
+plus +150 pts per repost (Instagram story or Telegram share, capped at 20
+reposts, counted only after at least one game is played).
 
 ## Live Leaderboard
 
