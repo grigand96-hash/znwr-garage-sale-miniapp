@@ -455,8 +455,8 @@ function sharePoints() {
 
 function shareBonusText() {
   return shareCount() > 0
-    ? `РЕПОСТЫ: ${shareCount()} · БОНУС +${sharePoints()} PTS`
-    : `КАЖДЫЙ РЕПОСТ = +${shareBonusPoints} PTS К РЕЙТИНГУ`;
+    ? `РЕПОСТЫ: ${shareCount()} · БОНУС +${sharePoints()} ОЧКОВ`
+    : `КАЖДЫЙ РЕПОСТ = +${shareBonusPoints} ОЧКОВ`;
 }
 
 function registerShare(source) {
@@ -614,7 +614,7 @@ function updateResultPanel() {
     resultBestGameNode.textContent = "";
   } else {
     resultPlaceNode.textContent = place ? `#${place}` : "РЕЙТИНГ";
-    resultSummaryNode.textContent = `${aggregate.rating} PTS · ${aggregate.gamesDone}/3 ИГР`;
+    resultSummaryNode.textContent = `${aggregate.rating} ОЧКОВ · ${aggregate.gamesDone}/3 ИГР`;
     resultBestGameNode.textContent = `ЛУЧШАЯ: ${aggregate.bestGame}`;
   }
   resultChanceNode.textContent = shareBonusText();
@@ -644,7 +644,7 @@ function renderRating() {
     player.textContent = row.name;
     game.className = "meta";
     game.textContent = `${row.gamesDone}/3 · ${row.bestGame}`;
-    score.textContent = `${row.rating} PTS`;
+    score.textContent = `${row.rating} ОЧКОВ`;
     player.appendChild(game);
     item.append(place, player, score);
     ratingList.appendChild(item);
@@ -707,7 +707,7 @@ function shareImageBlob() {
   storyCtx.fillStyle = "#ffffff";
   storyCtx.fillRect(180, 930, 720, 250);
   drawCenteredText(storyCtx, ratingText, 1020, 62, "#0025ff");
-  drawCenteredText(storyCtx, `${currentRating} PTS · ${gamesDone}/3 ИГР`, 1110, 42, "#0025ff");
+  drawCenteredText(storyCtx, `${currentRating} ОЧКОВ · ${gamesDone}/3 ИГР`, 1110, 42, "#0025ff");
 
   drawCenteredText(storyCtx, "ИГРАЙ И ВЫИГРАЙ", 1330, 54);
   drawCenteredText(storyCtx, "ПЛАЩ ИНЖЕНЕРА ZNWR", 1410, 54);
