@@ -32,3 +32,20 @@ The app logs game starts, rating results, sale-info opens, site clicks, and
 Instagram share intents. The public ranking is based on the sum of each
 player's best result across the three games, with game coefficients and a
 speed bonus.
+
+## Live Leaderboard
+
+The Apps Script keeps a `rating` sheet with each player's best result per
+game (keyed by Telegram user id, or session id for anonymous players) and
+serves the top players as JSON via `GET <analyticsEndpoint>?action=rating`.
+The app fetches this leaderboard on load and whenever the rating panel or
+result panel opens, and merges the local player into it. The hardcoded demo
+leaders are only shown as a fallback while the server list has not loaded
+(e.g. offline local preview).
+
+Deploying logger updates (from `google-sheets-logger-deploy/`):
+
+```bash
+npx @google/clasp push -f
+npx @google/clasp deploy -i AKfycbyyVhu_3TZ0X9NdyFIE0B2EJiCAlF18Eglhc5w2wOOQLJQ8hELMUHsmyDUCNRUYUMr2Dg -d "description"
+```

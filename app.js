@@ -70,6 +70,10 @@ const demoLeaders = [
   { name: "@archive_kid", rating: 1745, gamesDone: 1, bestGame: "CODE INVADERS", totalSeconds: 57 },
 ];
 
+let serverLeaders = null;
+let serverLeadersLoadedAt = 0;
+let serverLeadersPromise = null;
+
 const maze = [
   "#############",
   "#P....#....G#",
@@ -349,6 +353,11 @@ function localPlayerName() {
   return "YOU";
 }
 
+function localPlayerKey() {
+  const tgUser = tg?.initDataUnsafe?.user || {};
+  return tgUser.id ? `tg:${tgUser.id}` : `anon:${sessionId}`;
+}
+
 function getStoredRating() {
   try {
     const stored = JSON.parse(localStorage.getItem(ratingStorageKey) || "null");
@@ -413,12 +422,59 @@ function recordRatingResult(outcome) {
   });
 }
 
-function leaderboardRows() {
+function fetchLeaderboard(force = false) {
+  if (!analyticsEndpoint) return Promise.resolve(null);
+  if (serverLeadersPromise) return serverLeadersPromise;
+  if (!force && serverLeaders && Date.now() - serverLeadersLoadedAt < 30000) {
+    return Promise.resolve(serverLeaders);
+  }
+  serverLeadersPromise = fetch(`${analyticsEndpoint}?action=rating&limit=10&ts=${Date.now()}`)
+    .then((response) => response.json())
+    .then((data) => {
+      if (data?.ok && Array.isArray(data.players)) {
+        serverLeaders = data.players.map((player) => ({
+          key: String(player.key || ""),
+          name: String(player.name || "PLAYER"),
+          rating: Number(player.rating) || 0,
+          gamesDone: Number(player.gamesDone) || 0,
+          bestGame: String(player.bestGame || gameModes.pac.label),
+          totalSeconds: Number(player.totalSeconds) || 0,
+          chance: Number(player.chance) || 1,
+        }));
+        serverLeadersLoadedAt = Date.now();
+      }
+      return serverLeaders;
+    })
+    .catch(() => serverLeaders)
+    .finally(() => {
+      serverLeadersPromise = null;
+    });
+  return serverLeadersPromise;
+}
+
+function combinedRatingRows() {
+  const localKey = localPlayerKey();
   const localRating = aggregateLocalRating();
-  const boostedRating = localRating ? { ...localRating, chance: chanceMultiplier() } : null;
-  const rows = boostedRating ? [boostedRating, ...demoLeaders] : demoLeaders;
-  return sortRatingRows(rows)
-    .slice(0, 6);
+  const boostedRating = localRating
+    ? { ...localRating, key: localKey, chance: chanceMultiplier(), isLocal: true }
+    : null;
+  const base = serverLeaders
+    ? serverLeaders.filter((row) => row.key !== localKey)
+    : demoLeaders;
+  const serverSelf = serverLeaders?.find((row) => row.key === localKey) || null;
+  const rows = base.slice();
+  if (boostedRating && serverSelf && serverSelf.rating > boostedRating.rating) {
+    rows.push({ ...serverSelf, chance: boostedRating.chance, isLocal: true });
+  } else if (boostedRating) {
+    rows.push(boostedRating);
+  } else if (serverSelf) {
+    rows.push({ ...serverSelf, isLocal: true });
+  }
+  return sortRatingRows(rows);
+}
+
+function leaderboardRows() {
+  return combinedRatingRows().slice(0, 6);
 }
 
 function sortRatingRows(rows) {
@@ -428,14 +484,7 @@ function sortRatingRows(rows) {
 }
 
 function localRatingPlace() {
-  const localRating = aggregateLocalRating();
-  if (!localRating) return null;
-  const rows = sortRatingRows([localRating, ...demoLeaders]);
-  const index = rows.findIndex((row) => {
-    return row.name === localRating.name
-      && row.rating === localRating.rating
-      && row.gamesDone === localRating.gamesDone;
-  });
+  const index = combinedRatingRows().findIndex((row) => row.isLocal);
   return index === -1 ? null : index + 1;
 }
 
@@ -488,7 +537,15 @@ function updateResultPanel() {
 function renderRating() {
   ratingList.innerHTML = "";
   updateChanceUi();
-  leaderboardRows().forEach((row, index) => {
+  const rows = leaderboardRows();
+  if (!rows.length) {
+    const item = document.createElement("li");
+    item.className = "rating-empty";
+    item.textContent = "ПОКА ПУСТО — СЫГРАЙ ПЕРВЫМ";
+    ratingList.appendChild(item);
+    return;
+  }
+  rows.forEach((row, index) => {
     const item = document.createElement("li");
     const place = document.createElement("span");
     const player = document.createElement("span");
@@ -511,6 +568,9 @@ function openRating() {
   state.infoOpen = state.mode === "playing";
   salePanel.hidden = true;
   renderRating();
+  fetchLeaderboard(true).then(() => {
+    if (!ratingPanel.hidden) renderRating();
+  });
   ratingPanel.hidden = false;
   logEvent("rating_open");
   tg?.HapticFeedback?.impactOccurred("light");
@@ -645,6 +705,9 @@ async function shareToInstagram() {
 function unlockPrize() {
   recordRatingResult("win");
   updateResultPanel();
+  fetchLeaderboard(true).then(() => {
+    if (!prizePanel.hidden) updateResultPanel();
+  });
   prizePanel.hidden = false;
   gameoverPanel.hidden = true;
   setMode("prize");
@@ -1411,6 +1474,7 @@ window.addEventListener("resize", resize);
 
 resize();
 resetGame();
+fetchLeaderboard();
 if (urlParams.get("debugResult") === "1") {
   localStorage.setItem(ratingStorageKey, JSON.stringify({
     games: {
