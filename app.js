@@ -27,9 +27,18 @@ const instagramShareButton = document.querySelector("#instagramShareButton");
 const ratingCloseButton = document.querySelector("#ratingCloseButton");
 const ratingMenuButton = document.querySelector("#ratingMenuButton");
 const salePanel = document.querySelector("#salePanel");
+const saleDetailsBlock = document.querySelector("#saleDetailsBlock");
 const saleDetailsButton = document.querySelector("#saleDetailsButton");
+const saleChannelButton = document.querySelector("#saleChannelButton");
 const saleCloseButton = document.querySelector("#saleCloseButton");
 const saleMenuButton = document.querySelector("#saleMenuButton");
+const rulesPanel = document.querySelector("#rulesPanel");
+const rulesIntroButton = document.querySelector("#rulesIntroButton");
+const rulesButton = document.querySelector("#rulesButton");
+const rulesCloseButton = document.querySelector("#rulesCloseButton");
+const rulesMenuButton = document.querySelector("#rulesMenuButton");
+const tgShareButton = document.querySelector("#tgShareButton");
+const prizeSaleButton = document.querySelector("#prizeSaleButton");
 const againButton = document.querySelector("#againButton");
 const otherGamesButton = document.querySelector("#otherGamesButton");
 const restartButton = document.querySelector("#restartButton");
@@ -51,6 +60,7 @@ const ratingStorageKey = "znwr-garage-sale-rating";
 const repostStorageKey = "znwr-garage-sale-repost";
 const analyticsEndpoint = "https://script.google.com/macros/s/AKfycbyyVhu_3TZ0X9NdyFIE0B2EJiCAlF18Eglhc5w2wOOQLJQ8hELMUHsmyDUCNRUYUMr2Dg/exec";
 const urlParams = new URLSearchParams(window.location.search);
+const trafficSource = urlParams.get("src") || urlParams.get("utm_source") || "";
 const botShareUrl = urlParams.get("botLink") || "https://t.me/znwr_bot";
 const salePostUrl = urlParams.get("postLink") || "https://t.me/znwr";
 const znwrSiteUrl = "https://znwr.ru/?utm_source=tg_game";
@@ -306,6 +316,7 @@ function returnToMenu() {
   ratingPanel.hidden = true;
   prizePanel.hidden = true;
   gameoverPanel.hidden = true;
+  rulesPanel.hidden = true;
   setMode("intro");
   resetGame();
   logEvent("menu_opened");
@@ -323,15 +334,52 @@ function openSaleInfo() {
 function closeSaleInfo() {
   state.infoOpen = false;
   salePanel.hidden = true;
+  if (state.mode === "prize") prizePanel.hidden = false;
   tg?.HapticFeedback?.impactOccurred("light");
 }
 
 function openSaleDetails() {
-  logEvent("sale_details_open", { sale_post_url: salePostUrl });
+  const willShow = saleDetailsBlock.hidden;
+  saleDetailsBlock.hidden = !willShow;
+  saleDetailsButton.textContent = willShow ? "СКРЫТЬ" : "ПОДРОБНЕЕ";
+  if (willShow) logEvent("sale_details_open");
+  tg?.HapticFeedback?.impactOccurred("light");
+}
+
+function openSaleChannel() {
+  logEvent("sale_channel_open", { sale_post_url: salePostUrl });
   if (tg?.openTelegramLink && /^https:\/\/t\.me\//.test(salePostUrl)) {
     tg.openTelegramLink(salePostUrl);
   } else {
     window.open(salePostUrl, "_blank", "noopener");
+  }
+  tg?.HapticFeedback?.impactOccurred("light");
+}
+
+function openRules() {
+  state.infoOpen = state.mode === "playing";
+  rulesPanel.hidden = false;
+  logEvent("rules_open");
+  tg?.HapticFeedback?.impactOccurred("light");
+}
+
+function closeRules() {
+  state.infoOpen = false;
+  rulesPanel.hidden = true;
+  tg?.HapticFeedback?.impactOccurred("light");
+}
+
+function shareToTelegram() {
+  const place = localRatingPlace();
+  const text = place
+    ? `Я #${place} в рейтинге ZNWR Arcade Sale. Сыграй и попробуй обогнать — скидки 20-90% и розыгрыш плаща инженера!`
+    : "Играю в ZNWR Arcade Sale — скидки 20-90% и розыгрыш плаща инженера. Залетай!";
+  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(botShareUrl)}&text=${encodeURIComponent(text)}`;
+  logEvent("tg_share_intent", { rating_place: place || "" });
+  if (tg?.openTelegramLink) {
+    tg.openTelegramLink(shareUrl);
+  } else {
+    window.open(shareUrl, "_blank", "noopener");
   }
   tg?.HapticFeedback?.impactOccurred("light");
 }
@@ -650,7 +698,7 @@ function shareImageBlob() {
   drawStoryLine(storyCtx, `${gamesDone}/3 GAMES · ${totalSeconds} SEC`, 540, 1260, 40, "center", "#0025ff");
   drawStoryLine(storyCtx, `BEST ${currentGame}`, 540, 1310, 34, "center", "#0025ff");
 
-  drawStoryLine(storyCtx, `ШАНС НА ХУДИ X${chanceMultiplier()}`, 150, 1430, 52);
+  drawStoryLine(storyCtx, `ШАНС НА ПЛАЩ X${chanceMultiplier()}`, 150, 1430, 52);
   drawStoryLine(storyCtx, "ЗАХОДИ В БОТА:", 150, 1580, 44);
   drawStoryLine(storyCtx, botShareUrl.replace(/^https?:\/\//, ""), 150, 1660, 48);
   drawCenteredText(storyCtx, "PLAY / SHARE / WIN", 1775, 42);
@@ -745,6 +793,7 @@ function logEvent(eventName, extra = {}) {
   const payload = {
     event: eventName,
     session_id: sessionId,
+    src: trafficSource,
     timestamp: new Date().toISOString(),
     score: state.score,
     target: state.target,
@@ -1419,8 +1468,18 @@ prizeShareButton.addEventListener("click", () => {
   shareToInstagram().catch(() => {});
 });
 saleDetailsButton.addEventListener("click", openSaleDetails);
+saleChannelButton.addEventListener("click", openSaleChannel);
 saleCloseButton.addEventListener("click", closeSaleInfo);
 saleMenuButton.addEventListener("click", returnToMenu);
+rulesIntroButton.addEventListener("click", openRules);
+rulesButton.addEventListener("click", openRules);
+rulesCloseButton.addEventListener("click", closeRules);
+rulesMenuButton.addEventListener("click", returnToMenu);
+tgShareButton.addEventListener("click", shareToTelegram);
+prizeSaleButton.addEventListener("click", () => {
+  prizePanel.hidden = true;
+  openSaleInfo();
+});
 
 bindPad(upButton, 0, -1);
 bindPad(downButton, 0, 1);
@@ -1475,6 +1534,7 @@ window.addEventListener("resize", resize);
 resize();
 resetGame();
 fetchLeaderboard();
+logEvent("app_open");
 if (urlParams.get("debugResult") === "1") {
   localStorage.setItem(ratingStorageKey, JSON.stringify({
     games: {

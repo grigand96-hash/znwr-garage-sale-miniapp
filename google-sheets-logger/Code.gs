@@ -26,6 +26,7 @@ const HEADERS = [
   "app_url",
   "user_agent",
   "game_type",
+  "src",
 ];
 const RATING_HEADERS = [
   "player_key",
@@ -91,6 +92,7 @@ function doPost(e) {
       payload.app_url || "",
       payload.user_agent || "",
       payload.game_type || "",
+      payload.src || "",
     ];
 
     sheet.appendRow(row);

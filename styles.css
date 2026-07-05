@@ -458,6 +458,11 @@ h2 {
   font-size: 13px;
 }
 
+.intro-actions .full {
+  grid-column: 1 / -1;
+  font-size: 11px;
+}
+
 .actions {
   display: flex;
   gap: 12px;
@@ -507,11 +512,21 @@ h2 {
 }
 
 .sale-panel,
-.rating-panel {
+.rating-panel,
+.rules-panel {
   top: 50%;
   bottom: auto;
   transform: translate(-50%, -50%);
   width: min(82%, 340px);
+}
+
+.sale-details {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  width: 100%;
+  padding-top: 4px;
+  border-top: 2px solid var(--white);
 }
 
 .sale-copy {

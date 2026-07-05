@@ -33,8 +33,8 @@
               <span>10-12 ИЮЛЯ · ХЛЕБОЗАВОД, НЕМИГА</span>
             </div>
             <div class="raffle-card">
-              <p>РОЗЫГРЫШ ХУДИ</p>
-              <span>ПРИЗ: ХУДИ ZNWR</span>
+              <p>РОЗЫГРЫШ ПЛАЩА</p>
+              <span>ПРИЗ: ПЛАЩ ИНЖЕНЕРА ZNWR</span>
               <span>РЕЙТИНГ = ЛУЧШИЕ РЕЗУЛЬТАТЫ 3 ИГР</span>
               <span>РЕПОСТ СТОРИС = ШАНС X2</span>
             </div>
@@ -49,6 +49,7 @@
                 <button class="primary" id="startButton" type="button">START</button>
                 <button class="secondary compact" id="ratingIntroButton" type="button">RATING</button>
                 <button class="secondary compact" id="znwrButton" type="button">ZNWR</button>
+                <button class="secondary compact full" id="rulesIntroButton" type="button">УСЛОВИЯ РОЗЫГРЫША</button>
               </div>
             </section>
           </div>
@@ -78,7 +79,9 @@
           <p class="rating-boost" id="chanceText">ШАНС В РОЗЫГРЫШЕ: X1</p>
           <ol class="rating-list" id="ratingList"></ol>
           <div class="actions">
+            <button class="primary" id="tgShareButton" type="button">ПОЗВАТЬ ДРУГА</button>
             <button class="primary" id="instagramShareButton" type="button">SHARE TO INSTA</button>
+            <button class="secondary" id="rulesButton" type="button">ПРАВИЛА</button>
             <button class="primary" id="ratingCloseButton" type="button">BACK</button>
             <button class="secondary" id="ratingMenuButton" type="button">MENU</button>
           </div>
@@ -90,6 +93,13 @@
           <p class="sale-copy">ДАТА: С 10 ПО 12 ИЮЛЯ</p>
           <p class="sale-copy">МЕСТО: ХЛЕБОЗАВОД, НЕМИГА</p>
           <p class="sale-copy">СКИДКИ ОТ 20% ДО 90%</p>
+          <div class="sale-details" id="saleDetailsBlock" hidden>
+            <p class="sale-copy">ВРЕМЯ: 12:00–20:00</p>
+            <p class="sale-copy">АДРЕС: НЕМИГА, ПРОСТРАНСТВО ХЛЕБОЗАВОД</p>
+            <p class="sale-copy">ОПЛАТА: КАРТА / НАЛИЧНЫЕ</p>
+            <p class="sale-copy">АНОНСЫ И ДЕТАЛИ — В КАНАЛЕ ZNWR</p>
+            <button class="primary" id="saleChannelButton" type="button">КАНАЛ ZNWR</button>
+          </div>
           <div class="actions">
             <button class="primary" id="saleDetailsButton" type="button">ПОДРОБНЕЕ</button>
             <button class="primary" id="saleCloseButton" type="button">BACK</button>
@@ -103,7 +113,9 @@
           <p class="result-copy" id="resultSummary">0 PTS · 0/3 GAMES</p>
           <p class="result-copy" id="resultBestGame">BEST GAME</p>
           <p class="result-copy" id="resultChance">ШАНС В РОЗЫГРЫШЕ: X1</p>
+          <p class="result-copy">СЕЙЛ 10–12 ИЮЛЯ · ХЛЕБОЗАВОД, НЕМИГА</p>
           <div class="actions">
+            <button class="primary" id="prizeSaleButton" type="button">ИНФО О СЕЙЛЕ</button>
             <button class="primary" id="prizeShareButton" type="button">УДВОИТЬ ШАНС</button>
             <button class="primary" id="againButton" type="button">СНОВА</button>
             <button class="secondary" id="otherGamesButton" type="button">ДРУГИЕ ИГРЫ</button>
@@ -114,6 +126,21 @@
           <p class="kicker">TRY AGAIN</p>
           <h2>GAME OVER</h2>
           <button class="primary" id="restartButton" type="button">AGAIN</button>
+        </section>
+
+        <section class="panel rules-panel" id="rulesPanel" hidden>
+          <p class="kicker">RAFFLE RULES</p>
+          <h2>УСЛОВИЯ РОЗЫГРЫША</h2>
+          <p class="sale-copy">ПРИЗ: ПЛАЩ ИНЖЕНЕРА ZNWR</p>
+          <p class="sale-copy">УЧАСТВУЮТ ВСЕ, КТО СЫГРАЛ ХОТЯ БЫ ОДНУ ИГРУ ЧЕРЕЗ TELEGRAM</p>
+          <p class="sale-copy">ОЧКИ РЕЙТИНГА = ТВОИ БИЛЕТЫ: ЧЕМ БОЛЬШЕ ОЧКОВ, ТЕМ ВЫШЕ ШАНС</p>
+          <p class="sale-copy">РЕПОСТ В СТОРИС УДВАИВАЕТ ШАНС</p>
+          <p class="sale-copy">ИТОГИ: 13 ИЮЛЯ В КАНАЛЕ ZNWR</p>
+          <p class="sale-copy">ПОБЕДИТЕЛЮ НАПИШЕМ В TELEGRAM</p>
+          <div class="actions">
+            <button class="primary" id="rulesCloseButton" type="button">BACK</button>
+            <button class="secondary" id="rulesMenuButton" type="button">MENU</button>
+          </div>
         </section>
 
         <div class="controls">
