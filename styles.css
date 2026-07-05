@@ -4,7 +4,7 @@
   --shadow: rgba(255, 255, 255, 0.26);
   --panel: #0025ff;
   /* Overwritten from JS with the real Telegram WebView height. */
-  --app-h: 100dvh;
+  --app-h: 100svh;
 }
 
 * {

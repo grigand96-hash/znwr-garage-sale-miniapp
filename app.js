@@ -8,18 +8,25 @@ if (tg) {
 }
 
 // Telegram WebView height differs from device 100dvh — drive layout off the real
-// available height so absolute panels never overflow / overlap.
+// available height so absolute panels never overflow / overlap. Telegram grows the
+// viewport asynchronously after expand(), and old clients (6.0) report the height
+// late, so we resync on every signal and a few times right after launch.
 function syncViewportHeight() {
-  const height = tg?.viewportStableHeight || tg?.viewportHeight || window.innerHeight;
-  if (height) {
-    document.documentElement.style.setProperty("--app-h", `${Math.round(height)}px`);
-  }
+  const candidates = [tg?.viewportStableHeight, tg?.viewportHeight, window.innerHeight]
+    .map((value) => Number(value) || 0)
+    .filter((value) => value > 0);
+  if (!candidates.length) return;
+  const height = Math.min(...candidates);
+  document.documentElement.style.setProperty("--app-h", `${Math.round(height)}px`);
 }
 
 syncViewportHeight();
 tg?.onEvent?.("viewportChanged", syncViewportHeight);
 window.addEventListener("resize", syncViewportHeight);
 window.addEventListener("orientationchange", () => window.setTimeout(syncViewportHeight, 120));
+window.addEventListener("load", syncViewportHeight);
+// Catch the height that only settles after Telegram finishes the expand animation.
+[80, 250, 500, 900, 1500].forEach((delay) => window.setTimeout(syncViewportHeight, delay));
 
 const app = document.querySelector(".app");
 const canvas = document.querySelector("#game");
