@@ -1578,35 +1578,64 @@ function bindPad(button, x, y) {
   });
 }
 
-window.addEventListener("pointerdown", unlockAudio);
+// Синтетический click ненадёжен в Telegram-вебвью на iOS — вешаем действия на
+// pointerup (как рабочий d-пад), с дедупом click для мыши и отсевом скролла.
+// Каждый тап заодно разблокирует аудио (валидный для iOS жест).
+function onTap(el, handler) {
+  if (!el) return;
+  let downX = 0;
+  let downY = 0;
+  let moved = false;
+  let viaPointer = false;
+  el.addEventListener("pointerdown", (event) => {
+    downX = event.clientX;
+    downY = event.clientY;
+    moved = false;
+  });
+  el.addEventListener("pointermove", (event) => {
+    if (Math.abs(event.clientX - downX) > 12 || Math.abs(event.clientY - downY) > 12) moved = true;
+  });
+  el.addEventListener("pointerup", (event) => {
+    if (event.pointerType === "mouse") return;
+    if (moved) return;
+    viaPointer = true;
+    unlockAudio();
+    handler(event);
+    window.setTimeout(() => { viaPointer = false; }, 500);
+  });
+  el.addEventListener("click", (event) => {
+    if (viaPointer) return;
+    unlockAudio();
+    handler(event);
+  });
+}
 
-startButton.addEventListener("click", () => startGame());
-znwrButton.addEventListener("click", openZnwrSite);
-againButton.addEventListener("click", () => startGame());
-otherGamesButton.addEventListener("click", returnToMenu);
-restartButton.addEventListener("click", () => startGame());
-gameoverMenuButton.addEventListener("click", returnToMenu);
-soundButton.addEventListener("click", toggleSound);
-menuButton.addEventListener("click", returnToMenu);
-saleButton.addEventListener("click", openSaleInfo);
-ratingButton.addEventListener("click", openRating);
-ratingIntroButton.addEventListener("click", openRating);
-ratingCloseButton.addEventListener("click", closeRating);
-instagramShareButton.addEventListener("click", () => {
-  shareToInstagram().catch(() => {});
-});
-prizeShareButton.addEventListener("click", () => {
-  shareToInstagram().catch(() => {});
-});
-saleDetailsButton.addEventListener("click", openSaleDetails);
-saleChannelButton.addEventListener("click", openSaleChannel);
-saleCloseButton.addEventListener("click", closeSaleInfo);
-rulesIntroButton.addEventListener("click", openRules);
-rulesButton.addEventListener("click", openRules);
-rulesCloseButton.addEventListener("click", closeRules);
-tgShareButton.addEventListener("click", shareToTelegram);
-prizeTgButton.addEventListener("click", shareToTelegram);
-prizeSaleButton.addEventListener("click", () => {
+window.addEventListener("pointerdown", unlockAudio);
+window.addEventListener("touchend", unlockAudio);
+
+onTap(startButton, () => startGame());
+onTap(znwrButton, openZnwrSite);
+onTap(againButton, () => startGame());
+onTap(otherGamesButton, returnToMenu);
+onTap(restartButton, () => startGame());
+onTap(gameoverMenuButton, returnToMenu);
+onTap(soundButton, toggleSound);
+onTap(menuButton, returnToMenu);
+onTap(saleButton, openSaleInfo);
+onTap(ratingButton, openRating);
+onTap(ratingIntroButton, openRating);
+onTap(ratingCloseButton, closeRating);
+onTap(instagramShareButton, () => { shareToInstagram().catch(() => {}); });
+onTap(prizeShareButton, () => { shareToInstagram().catch(() => {}); });
+onTap(saleDetailsButton, openSaleDetails);
+onTap(saleChannelButton, openSaleChannel);
+onTap(saleCloseButton, closeSaleInfo);
+onTap(rulesIntroButton, openRules);
+onTap(rulesButton, openRules);
+onTap(rulesCloseButton, closeRules);
+onTap(tgShareButton, shareToTelegram);
+onTap(prizeTgButton, shareToTelegram);
+onTap(prizeSaleButton, () => {
   prizePanel.hidden = true;
   openSaleInfo();
 });
@@ -1653,7 +1682,7 @@ canvas.addEventListener("pointerdown", (event) => {
 });
 
 gameButtons.forEach((button) => {
-  button.addEventListener("click", () => {
+  onTap(button, () => {
     selectGame(button.dataset.game);
     playTone(783.99, 0.05, 0.35);
   });
