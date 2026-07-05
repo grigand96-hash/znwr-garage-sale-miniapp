@@ -126,17 +126,15 @@ const maze = [
 ];
 
 const startPlayer = { x: 1, y: 1 };
+// Порядок = порядок появления призраков с уровнями (2 на старте, +1 за уровень).
 const enemyStarts = [
   { x: 11, y: 1, dirX: -1, dirY: 0 },
-  { x: 1, y: 11, dirX: 1, dirY: 0 },
   { x: 11, y: 11, dirX: -1, dirY: 0 },
+  { x: 1, y: 11, dirX: 1, dirY: 0 },
+  { x: 6, y: 3, dirX: 1, dirY: 0 },
+  { x: 6, y: 9, dirX: -1, dirY: 0 },
 ];
 
-// Уровень pac = очистить всю карту; очков за уровень = число точек (для рейтинга).
-gameModes.pac.target = maze.reduce(
-  (sum, row) => sum + [...row].filter((cell) => cell === ".").length,
-  0,
-);
 
 const state = {
   mode: "intro",
@@ -145,6 +143,7 @@ const state = {
   target: 24,
   level: 1,
   flash: null,
+  qualifiedThisRun: false,
   enemySpeed: 3.1,
   width: 360,
   height: 640,
@@ -244,6 +243,7 @@ function resetGame() {
   state.score = 0;
   state.level = 1;
   state.flash = null;
+  state.qualifiedThisRun = false;
   state.gameStartedAt = Date.now();
   state.particles = [];
   state.dangerUntil = 0;
@@ -263,19 +263,26 @@ function levelUp() {
   state.level += 1;
   respawnLevelObjects();
   updateHud();
-  if (state.level === 2 && !isQualified()) {
-    markQualified();
-    showFlash("ТЫ В РОЗЫГРЫШЕ!");
-    logEvent("raffle_qualified", { game_type: state.gameType });
-  } else if (state.level === 2) {
-    showFlash("БАЗА ПРОЙДЕНА");
-  } else {
-    showFlash(`УРОВЕНЬ ${state.level}`);
-  }
+  showFlash(`УРОВЕНЬ ${state.level}`);
   logEvent("level_up", { level: state.level, score: state.score });
   softenMusic();
   playWinJingle();
   tg?.HapticFeedback?.notificationOccurred("success");
+}
+
+// Квалификация в розыгрыш = набрать базовый минимум очков (target), а не
+// вычистить весь уровень. Вызывается после каждого набора очка.
+function checkQualify() {
+  if (state.qualifiedThisRun) return;
+  if (state.score < gameModes[state.gameType].target) return;
+  state.qualifiedThisRun = true;
+  if (!isQualified()) {
+    markQualified();
+    showFlash("ТЫ В РОЗЫГРЫШЕ!");
+    logEvent("raffle_qualified", { game_type: state.gameType });
+  } else {
+    showFlash("БАЗА ВЗЯТА");
+  }
 }
 
 function showFlash(text) {
@@ -309,7 +316,9 @@ function resetPacGame() {
     wantX: 0,
     wantY: 0,
   };
-  state.enemies = enemyStarts.map((enemy) => ({
+  // Новые призраки появляются с уровнями: 2 на старте, +1 за уровень (до 5).
+  const ghostCount = Math.min(2 + (state.level - 1), enemyStarts.length);
+  state.enemies = enemyStarts.slice(0, ghostCount).map((enemy) => ({
     startX: enemy.x,
     startY: enemy.y,
     x: enemy.x,
@@ -321,8 +330,8 @@ function resetPacGame() {
     dirX: enemy.dirX,
     dirY: enemy.dirY,
   }));
-  // Призраки быстрее с каждым уровнем.
-  state.enemySpeed = 3.1 + (state.level - 1) * 0.55;
+  // Призраки плавно быстрее с каждым уровнем.
+  state.enemySpeed = 3.0 + (state.level - 1) * 0.3;
   state.invaders = null;
   state.breakout = null;
 }
@@ -343,12 +352,13 @@ function resetInvadersGame() {
     aliens,
     cols,
     rows,
+    total: cols * rows,
     alienDir: 1,
     alienOffsetX: 0,
-    alienOffsetY: 0,
-    // Стартовая скорость и шаг спуска растут с уровнем.
-    alienSpeed: 0.084 + (state.level - 1) * 0.02,
-    dropStep: 0.032 + (state.level - 1) * 0.006,
+    // Канон: с уровнями волна стартует ниже, база чуть быстрее, шаг вниз мелкий.
+    alienOffsetY: Math.min((state.level - 1) * 0.05, 0.22),
+    baseSpeed: 0.066 + (state.level - 1) * 0.008,
+    dropStep: 0.024,
     fireCooldown: 0,
   };
   state.dots = new Set();
@@ -363,8 +373,8 @@ function resetBreakoutGame() {
       bricks.push({ x, y, alive: true });
     }
   }
-  // Мяч быстрее с каждым уровнем.
-  const speed = 1 + (state.level - 1) * 0.13;
+  // Мяч плавно быстрее с каждым уровнем.
+  const speed = 1 + (state.level - 1) * 0.08;
   state.breakout = {
     paddleX: 0.5,
     paddleDir: 0,
@@ -838,7 +848,7 @@ async function shareToInstagram() {
 // результат идёт в рейтинг и показываем экран результата. Если игрок не осилил
 // даже базу — в рейтинг НЕ пишем, показываем «попробуй ещё».
 function gameOver() {
-  const clearedBase = state.level >= 2;
+  const clearedBase = state.score >= gameModes[state.gameType].target;
   stopMusic();
   playGameOverJingle();
 
@@ -1179,6 +1189,7 @@ function collectCurrentTile() {
     addParticles(state.player.x, state.player.y);
     tg?.HapticFeedback?.impactOccurred("light");
     if (state.dots.size === 0) levelUp();
+    checkQualify();
   }
 }
 
@@ -1279,12 +1290,17 @@ function updateInvadersGame(delta) {
   const invaders = state.invaders;
   if (!invaders) return;
   invaders.playerX = Math.max(0.08, Math.min(0.92, invaders.playerX + invaders.playerDir * delta * 0.92));
-  invaders.alienOffsetX += invaders.alienDir * invaders.alienSpeed * delta;
+
+  const liveAliens = positionedAliens().filter((alien) => alien.alive);
+  // Канон Space Invaders: чем меньше пришельцев осталось, тем быстрее вся волна.
+  const killedFraction = 1 - liveAliens.length / invaders.total;
+  const speed = invaders.baseSpeed * (1 + killedFraction * 1.6);
+  invaders.alienOffsetX += invaders.alienDir * speed * delta;
 
   if (invaders.alienOffsetX > 0.1 || invaders.alienOffsetX < -0.1) {
+    invaders.alienOffsetX = Math.max(-0.1, Math.min(0.1, invaders.alienOffsetX));
     invaders.alienDir *= -1;
     invaders.alienOffsetY += invaders.dropStep;
-    invaders.alienSpeed = Math.min(0.15 + (state.level - 1) * 0.02, invaders.alienSpeed + 0.0075);
   }
 
   if (invaders.shot) {
@@ -1292,7 +1308,6 @@ function updateInvadersGame(delta) {
     if (invaders.shot.y < 0.02) invaders.shot = null;
   }
 
-  const liveAliens = positionedAliens().filter((alien) => alien.alive);
   if (liveAliens.some((alien) => alien.cy > 0.9)) {
     gameOver();
     return;
@@ -1310,6 +1325,7 @@ function updateInvadersGame(delta) {
       addParticlesNormalized(hit.cx, hit.cy);
       tg?.HapticFeedback?.impactOccurred("light");
       if (positionedAliens().every((alien) => !alien.alive)) levelUp();
+      checkQualify();
     }
   }
 }
@@ -1366,6 +1382,7 @@ function updateBreakoutGame(delta) {
     addParticlesNormalized(hit.cx, hit.cy);
     tg?.HapticFeedback?.impactOccurred("light");
     if (positionedBricks().every((brick) => !brick.alive)) levelUp();
+    checkQualify();
   }
 
   if (ball.y > 1.02) gameOver();
