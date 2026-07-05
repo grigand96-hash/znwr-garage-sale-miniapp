@@ -58,6 +58,7 @@ button {
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
+  gap: 14px;
   pointer-events: none;
 }
 
@@ -75,6 +76,17 @@ button {
 .scoreboard {
   min-width: 84px;
   text-align: left;
+}
+
+.game-label {
+  max-width: 150px;
+  font-size: clamp(12px, 3.2vw, 18px);
+  line-height: 1.1;
+  font-weight: 900;
+  text-transform: uppercase;
+  text-shadow:
+    2px 0 0 var(--blue),
+    0 2px 0 var(--blue);
 }
 
 #game {
@@ -115,12 +127,45 @@ button {
 }
 
 .intro-panel {
-  bottom: max(34px, calc(env(safe-area-inset-bottom) + 24px));
-  width: auto;
-  padding: 0;
+  bottom: max(22px, calc(env(safe-area-inset-bottom) + 16px));
+  width: min(82%, 340px);
+  padding: 14px;
+  background: var(--blue);
+  border: 2px solid var(--white);
+  box-shadow: 7px 7px 0 var(--shadow);
+}
+
+.game-menu {
+  display: grid;
+  width: 100%;
+  gap: 8px;
+}
+
+.game-option {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 2px solid var(--white);
   background: transparent;
-  border: 0;
-  box-shadow: none;
+  color: var(--white);
+  border-radius: 0;
+  font-size: 13px;
+  font-weight: 900;
+  text-align: left;
+  cursor: pointer;
+}
+
+.game-option::before {
+  content: "  ";
+}
+
+.game-option.is-selected {
+  background: var(--white);
+  color: var(--blue);
+}
+
+.game-option.is-selected::before {
+  content: "> ";
 }
 
 .kicker {
@@ -241,6 +286,7 @@ h2 {
 
 [data-state="intro"] #game,
 [data-state="intro"] .scoreboard,
+[data-state="intro"] .game-label,
 [data-state="intro"] .sound-toggle {
   display: none;
 }

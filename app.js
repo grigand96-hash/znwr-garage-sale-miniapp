@@ -11,7 +11,10 @@ const app = document.querySelector(".app");
 const canvas = document.querySelector("#game");
 const ctx = canvas.getContext("2d");
 const scoreNode = document.querySelector("#score");
+const targetNode = document.querySelector("#target");
+const gameLabelNode = document.querySelector("#gameLabel");
 const startButton = document.querySelector("#startButton");
+const gameButtons = [...document.querySelectorAll(".game-option")];
 const copyButton = document.querySelector("#copyButton");
 const againButton = document.querySelector("#againButton");
 const restartButton = document.querySelector("#restartButton");
@@ -29,6 +32,12 @@ const storageKey = "znwr-garage-sale-promo";
 const soundStorageKey = "znwr-garage-sale-sound";
 const analyticsEndpoint = "https://script.google.com/macros/s/AKfycbyyVhu_3TZ0X9NdyFIE0B2EJiCAlF18Eglhc5w2wOOQLJQ8hELMUHsmyDUCNRUYUMr2Dg/exec";
 const sessionId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+
+const gameModes = {
+  pac: { label: "PAC SALE", target: 24 },
+  invaders: { label: "CODE INVADERS", target: 18 },
+  breakout: { label: "PROMO BREAKOUT", target: 18 },
+};
 
 const maze = [
   "#############",
@@ -55,6 +64,7 @@ const enemyStarts = [
 
 const state = {
   mode: "intro",
+  gameType: "pac",
   score: 0,
   target: 24,
   width: 360,
@@ -76,6 +86,8 @@ const state = {
     wantY: 0,
   },
   enemies: [],
+  invaders: null,
+  breakout: null,
   particles: [],
   lastFrame: 0,
   gameStartedAt: 0,
@@ -128,9 +140,35 @@ function setMode(mode) {
   app.dataset.state = mode;
 }
 
+function selectGame(gameType) {
+  if (!gameModes[gameType]) return;
+  state.gameType = gameType;
+  updateGameChrome();
+  gameButtons.forEach((button) => {
+    button.classList.toggle("is-selected", button.dataset.game === gameType);
+  });
+}
+
+function updateGameChrome() {
+  const mode = gameModes[state.gameType];
+  state.target = mode.target;
+  targetNode.textContent = String(mode.target).padStart(2, "0");
+  gameLabelNode.textContent = mode.label;
+}
+
 function resetGame() {
+  updateGameChrome();
   state.score = 0;
   state.gameStartedAt = Date.now();
+  state.particles = [];
+  state.dangerUntil = 0;
+  scoreNode.textContent = "00";
+  if (state.gameType === "pac") resetPacGame();
+  if (state.gameType === "invaders") resetInvadersGame();
+  if (state.gameType === "breakout") resetBreakoutGame();
+}
+
+function resetPacGame() {
   state.dots = new Set();
   maze.forEach((row, y) => {
     [...row].forEach((cell, x) => {
@@ -161,9 +199,52 @@ function resetGame() {
     dirX: enemy.dirX,
     dirY: enemy.dirY,
   }));
-  state.particles = [];
-  state.dangerUntil = 0;
-  scoreNode.textContent = "00";
+  state.invaders = null;
+  state.breakout = null;
+}
+
+function resetInvadersGame() {
+  const cols = 6;
+  const rows = 3;
+  const aliens = [];
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
+      aliens.push({ x, y, alive: true });
+    }
+  }
+  state.invaders = {
+    playerX: 0.5,
+    playerDir: 0,
+    shot: null,
+    aliens,
+    alienDir: 1,
+    alienOffsetX: 0,
+    alienOffsetY: 0,
+    alienSpeed: 0.18,
+    fireCooldown: 0,
+  };
+  state.dots = new Set();
+  state.enemies = [];
+  state.breakout = null;
+}
+
+function resetBreakoutGame() {
+  const bricks = [];
+  for (let y = 0; y < 3; y += 1) {
+    for (let x = 0; x < 6; x += 1) {
+      bricks.push({ x, y, alive: true });
+    }
+  }
+  state.breakout = {
+    paddleX: 0.5,
+    paddleDir: 0,
+    launched: false,
+    ball: { x: 0.5, y: 0.76, vx: 0.28, vy: -0.42 },
+    bricks,
+  };
+  state.dots = new Set();
+  state.enemies = [];
+  state.invaders = null;
 }
 
 function choosePromo() {
@@ -174,7 +255,8 @@ function choosePromo() {
   return state.promo;
 }
 
-function startGame() {
+function startGame(gameType = state.gameType) {
+  selectGame(gameType);
   prizePanel.hidden = true;
   gameoverPanel.hidden = true;
   resetGame();
@@ -223,6 +305,7 @@ function logEvent(eventName, extra = {}) {
     target: state.target,
     play_seconds: getPlaySeconds(),
     mode: state.mode,
+    game_type: state.gameType,
     sound_enabled: state.soundEnabled,
     promo: state.promo || "",
     app_url: window.location.href,
@@ -372,8 +455,20 @@ function tileCenter(x, y) {
 
 function setDirection(x, y) {
   if (state.mode !== "playing") return;
-  state.player.wantX = x;
-  state.player.wantY = y;
+  if (state.gameType === "pac") {
+    state.player.wantX = x;
+    state.player.wantY = y;
+    return;
+  }
+  if (state.gameType === "invaders" && state.invaders) {
+    state.invaders.playerDir = x;
+    if (y < 0) fireInvaderShot();
+    return;
+  }
+  if (state.gameType === "breakout" && state.breakout) {
+    state.breakout.paddleDir = x;
+    if (y < 0) launchBreakoutBall();
+  }
 }
 
 function canMoveFrom(x, y, dirX, dirY) {
@@ -501,11 +596,174 @@ function resetPlayerPosition() {
   state.player.wantY = 0;
 }
 
-function updatePlaying(delta, time) {
+function updatePacGame(delta, time) {
   movePlayer(delta);
   collectCurrentTile();
   updateEnemies(delta);
   handleEnemyHit(time);
+}
+
+function gameArea() {
+  const width = Math.min(state.width * 0.86, 380);
+  const height = Math.min(state.height * 0.58, 460);
+  return {
+    x: Math.round((state.width - width) / 2),
+    y: Math.round(state.height * 0.2),
+    w: Math.round(width),
+    h: Math.round(height),
+  };
+}
+
+function normalizedToCanvas(nx, ny) {
+  const area = gameArea();
+  return {
+    x: area.x + nx * area.w,
+    y: area.y + ny * area.h,
+  };
+}
+
+function addParticlesNormalized(nx, ny) {
+  const center = normalizedToCanvas(nx, ny);
+  for (let i = 0; i < 10; i += 1) {
+    state.particles.push({
+      x: center.x,
+      y: center.y,
+      vx: (Math.random() - 0.5) * 150,
+      vy: (Math.random() - 0.5) * 150,
+      life: 0.42,
+    });
+  }
+}
+
+function positionedAliens() {
+  const invaders = state.invaders;
+  if (!invaders) return [];
+  return invaders.aliens.map((alien) => ({
+    ...alien,
+    ref: alien,
+    cx: 0.22 + alien.x * 0.112 + invaders.alienOffsetX,
+    cy: 0.16 + alien.y * 0.09 + invaders.alienOffsetY,
+  }));
+}
+
+function positionedBricks() {
+  const breakout = state.breakout;
+  if (!breakout) return [];
+  return breakout.bricks.map((brick) => ({
+    ...brick,
+    ref: brick,
+    cx: 0.17 + brick.x * 0.132,
+    cy: 0.16 + brick.y * 0.07,
+  }));
+}
+
+function fireInvaderShot() {
+  const invaders = state.invaders;
+  if (!invaders || invaders.shot) return;
+  invaders.shot = { x: invaders.playerX, y: 0.82 };
+  playTone(987.77, 0.08, 0.55);
+}
+
+function updateInvadersGame(delta) {
+  const invaders = state.invaders;
+  if (!invaders) return;
+  invaders.playerX = Math.max(0.08, Math.min(0.92, invaders.playerX + invaders.playerDir * delta * 0.72));
+  invaders.alienOffsetX += invaders.alienDir * invaders.alienSpeed * delta;
+
+  if (invaders.alienOffsetX > 0.08 || invaders.alienOffsetX < -0.08) {
+    invaders.alienDir *= -1;
+    invaders.alienOffsetY += 0.045;
+    invaders.alienSpeed += 0.018;
+  }
+
+  if (invaders.shot) {
+    invaders.shot.y -= delta * 0.92;
+    if (invaders.shot.y < 0.02) invaders.shot = null;
+  }
+
+  const liveAliens = positionedAliens().filter((alien) => alien.alive);
+  if (liveAliens.some((alien) => alien.cy > 0.78)) {
+    gameOver();
+    return;
+  }
+
+  if (invaders.shot) {
+    const hit = liveAliens.find((alien) => {
+      return Math.abs(alien.cx - invaders.shot.x) < 0.055 && Math.abs(alien.cy - invaders.shot.y) < 0.042;
+    });
+    if (hit) {
+      hit.ref.alive = false;
+      state.score += 1;
+      scoreNode.textContent = String(state.score).padStart(2, "0");
+      invaders.shot = null;
+      addParticlesNormalized(hit.cx, hit.cy);
+      tg?.HapticFeedback?.impactOccurred("light");
+      if (state.score >= state.target) unlockPrize();
+    }
+  }
+}
+
+function launchBreakoutBall() {
+  const breakout = state.breakout;
+  if (!breakout) return;
+  breakout.launched = true;
+}
+
+function updateBreakoutGame(delta) {
+  const breakout = state.breakout;
+  if (!breakout) return;
+  breakout.paddleX = Math.max(0.14, Math.min(0.86, breakout.paddleX + breakout.paddleDir * delta * 0.78));
+
+  const ball = breakout.ball;
+  if (!breakout.launched) {
+    ball.x = breakout.paddleX;
+    ball.y = 0.76;
+    return;
+  }
+
+  ball.x += ball.vx * delta;
+  ball.y += ball.vy * delta;
+
+  if (ball.x < 0.04 || ball.x > 0.96) {
+    ball.x = Math.max(0.04, Math.min(0.96, ball.x));
+    ball.vx *= -1;
+    playTone(523.25, 0.05, 0.35);
+  }
+  if (ball.y < 0.04) {
+    ball.y = 0.04;
+    ball.vy = Math.abs(ball.vy);
+    playTone(523.25, 0.05, 0.35);
+  }
+
+  const paddleHit = ball.y > 0.79 && ball.y < 0.84 && Math.abs(ball.x - breakout.paddleX) < 0.14 && ball.vy > 0;
+  if (paddleHit) {
+    ball.y = 0.79;
+    ball.vy = -Math.abs(ball.vy) * 1.02;
+    ball.vx += (ball.x - breakout.paddleX) * 1.1;
+    ball.vx = Math.max(-0.56, Math.min(0.56, ball.vx));
+    playTone(659.25, 0.06, 0.45);
+  }
+
+  const hit = positionedBricks().find((brick) => {
+    return brick.alive && Math.abs(brick.cx - ball.x) < 0.075 && Math.abs(brick.cy - ball.y) < 0.04;
+  });
+  if (hit) {
+    hit.ref.alive = false;
+    ball.vy *= -1;
+    state.score += 1;
+    scoreNode.textContent = String(state.score).padStart(2, "0");
+    addParticlesNormalized(hit.cx, hit.cy);
+    tg?.HapticFeedback?.impactOccurred("light");
+    if (state.score >= state.target) unlockPrize();
+  }
+
+  if (ball.y > 1.02) gameOver();
+}
+
+function updatePlaying(delta, time) {
+  if (state.gameType === "pac") updatePacGame(delta, time);
+  if (state.gameType === "invaders") updateInvadersGame(delta);
+  if (state.gameType === "breakout") updateBreakoutGame(delta);
 }
 
 function drawMaze() {
@@ -583,6 +841,80 @@ function drawParticles(delta) {
   });
 }
 
+function drawArenaFrame() {
+  const area = gameArea();
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(area.x, area.y, area.w, area.h);
+  return area;
+}
+
+function fillPixelRect(area, nx, ny, nw, nh) {
+  ctx.fillRect(
+    Math.round(area.x + nx * area.w),
+    Math.round(area.y + ny * area.h),
+    Math.round(nw * area.w),
+    Math.round(nh * area.h),
+  );
+}
+
+function drawInvaderShape(area, nx, ny) {
+  ctx.fillStyle = "#fff";
+  fillPixelRect(area, nx - 0.028, ny - 0.022, 0.056, 0.044);
+  fillPixelRect(area, nx - 0.042, ny - 0.006, 0.014, 0.03);
+  fillPixelRect(area, nx + 0.028, ny - 0.006, 0.014, 0.03);
+  fillPixelRect(area, nx - 0.018, ny + 0.022, 0.012, 0.018);
+  fillPixelRect(area, nx + 0.006, ny + 0.022, 0.012, 0.018);
+  ctx.fillStyle = "#0025ff";
+  fillPixelRect(area, nx - 0.016, ny - 0.006, 0.008, 0.008);
+  fillPixelRect(area, nx + 0.008, ny - 0.006, 0.008, 0.008);
+}
+
+function drawInvaders() {
+  const area = drawArenaFrame();
+  ctx.fillStyle = "#fff";
+  positionedAliens().forEach((alien) => {
+    if (alien.alive) drawInvaderShape(area, alien.cx, alien.cy);
+  });
+
+  const invaders = state.invaders;
+  if (!invaders) return;
+  ctx.fillStyle = "#fff";
+  fillPixelRect(area, invaders.playerX - 0.045, 0.86, 0.09, 0.035);
+  fillPixelRect(area, invaders.playerX - 0.016, 0.825, 0.032, 0.04);
+
+  if (invaders.shot) {
+    fillPixelRect(area, invaders.shot.x - 0.006, invaders.shot.y - 0.035, 0.012, 0.07);
+  }
+
+  ctx.fillStyle = "#fff";
+  for (let i = 0; i < 9; i += 1) {
+    fillPixelRect(area, 0.12 + i * 0.095, 0.58, 0.012, 0.012);
+  }
+}
+
+function drawBreakout() {
+  const area = drawArenaFrame();
+  ctx.fillStyle = "#fff";
+  positionedBricks().forEach((brick) => {
+    if (!brick.alive) return;
+    fillPixelRect(area, brick.cx - 0.052, brick.cy - 0.024, 0.104, 0.044);
+  });
+
+  const breakout = state.breakout;
+  if (!breakout) return;
+  fillPixelRect(area, breakout.paddleX - 0.12, 0.86, 0.24, 0.032);
+  const ball = breakout.ball;
+  fillPixelRect(area, ball.x - 0.018, ball.y - 0.018, 0.036, 0.036);
+
+  if (!breakout.launched) {
+    ctx.font = "700 13px Courier New, monospace";
+    ctx.fillStyle = "#fff";
+    ctx.textAlign = "center";
+    ctx.fillText("PRESS UP", area.x + area.w / 2, area.y + area.h * 0.68);
+  }
+}
+
 function render(time = 0) {
   const delta = Math.min(0.032, (time - state.lastFrame) / 1000 || 0);
   state.lastFrame = time;
@@ -591,11 +923,21 @@ function render(time = 0) {
 
   if (state.mode === "playing") updatePlaying(delta, time);
 
-  if (state.mode === "playing" || state.mode === "prize" || state.mode === "gameover") {
+  if ((state.mode === "playing" || state.mode === "prize" || state.mode === "gameover") && state.gameType === "pac") {
     drawMaze();
     drawParticles(state.mode === "playing" ? delta : 0);
     drawEnemies();
     drawPlayer(time);
+  }
+
+  if ((state.mode === "playing" || state.mode === "prize" || state.mode === "gameover") && state.gameType === "invaders") {
+    drawInvaders();
+    drawParticles(state.mode === "playing" ? delta : 0);
+  }
+
+  if ((state.mode === "playing" || state.mode === "prize" || state.mode === "gameover") && state.gameType === "breakout") {
+    drawBreakout();
+    drawParticles(state.mode === "playing" ? delta : 0);
   }
 
   requestAnimationFrame(render);
@@ -603,6 +945,12 @@ function render(time = 0) {
 
 function bindPad(button, x, y) {
   button.addEventListener("pointerdown", () => setDirection(x, y));
+  button.addEventListener("pointerup", () => {
+    if (state.gameType !== "pac" && x !== 0) setDirection(0, 0);
+  });
+  button.addEventListener("pointercancel", () => {
+    if (state.gameType !== "pac" && x !== 0) setDirection(0, 0);
+  });
 }
 
 function copyPromo() {
@@ -615,9 +963,9 @@ function copyPromo() {
   }, 1200);
 }
 
-startButton.addEventListener("click", startGame);
-againButton.addEventListener("click", startGame);
-restartButton.addEventListener("click", startGame);
+startButton.addEventListener("click", () => startGame());
+againButton.addEventListener("click", () => startGame());
+restartButton.addEventListener("click", () => startGame());
 copyButton.addEventListener("click", copyPromo);
 soundButton.addEventListener("click", toggleSound);
 
@@ -634,8 +982,21 @@ window.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && state.mode !== "playing") startGame();
 });
 
+window.addEventListener("keyup", (event) => {
+  if (state.gameType === "pac") return;
+  if (event.key === "ArrowLeft" || event.key === "ArrowRight") setDirection(0, 0);
+});
+
 canvas.addEventListener("pointerdown", (event) => {
   if (state.mode !== "playing") return;
+  if (state.gameType === "invaders") {
+    fireInvaderShot();
+    return;
+  }
+  if (state.gameType === "breakout") {
+    launchBreakoutBall();
+    return;
+  }
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
@@ -647,6 +1008,13 @@ canvas.addEventListener("pointerdown", (event) => {
   } else {
     setDirection(0, Math.sign(dy));
   }
+});
+
+gameButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    selectGame(button.dataset.game);
+    playTone(783.99, 0.05, 0.35);
+  });
 });
 
 window.addEventListener("resize", resize);

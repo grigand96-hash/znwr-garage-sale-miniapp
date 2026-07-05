@@ -14,8 +14,9 @@
         <div class="hud">
           <div class="scoreboard" aria-label="Счёт">
             <span id="score">00</span>
-            <span>/24</span>
+            <span>/</span><span id="target">24</span>
           </div>
+          <div class="game-label" id="gameLabel">PAC SALE</div>
         </div>
 
         <img class="poster" src="./assets/garage-sale-poster.png" alt="Архив распродажа ZNWR" />
@@ -25,6 +26,12 @@
         <button class="sound-toggle" id="soundButton" type="button" aria-label="Выключить звук">SOUND ON</button>
 
         <section class="panel intro-panel" id="introPanel">
+          <p class="kicker">SELECT GAME</p>
+          <div class="game-menu" aria-label="Выбор игры">
+            <button class="game-option is-selected" data-game="pac" type="button">PAC SALE</button>
+            <button class="game-option" data-game="invaders" type="button">CODE INVADERS</button>
+            <button class="game-option" data-game="breakout" type="button">PROMO BREAKOUT</button>
+          </div>
           <button class="primary" id="startButton" type="button">START</button>
         </section>
 

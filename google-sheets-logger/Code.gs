@@ -1,4 +1,24 @@
 const SHEET_NAME = "events";
+const HEADERS = [
+  "server_time",
+  "client_time",
+  "event",
+  "session_id",
+  "telegram_verified",
+  "telegram_user_id",
+  "telegram_username",
+  "telegram_first_name",
+  "telegram_last_name",
+  "score",
+  "target",
+  "play_seconds",
+  "mode",
+  "sound_enabled",
+  "promo",
+  "app_url",
+  "user_agent",
+  "game_type",
+];
 
 function doPost(e) {
   try {
@@ -31,6 +51,7 @@ function doPost(e) {
       payload.promo || "",
       payload.app_url || "",
       payload.user_agent || "",
+      payload.game_type || "",
     ];
 
     sheet.appendRow(row);
@@ -46,26 +67,10 @@ function getEventsSheet_(spreadsheetId) {
   if (!sheet) sheet = spreadsheet.insertSheet(SHEET_NAME);
 
   if (sheet.getLastRow() === 0) {
-    sheet.appendRow([
-      "server_time",
-      "client_time",
-      "event",
-      "session_id",
-      "telegram_verified",
-      "telegram_user_id",
-      "telegram_username",
-      "telegram_first_name",
-      "telegram_last_name",
-      "score",
-      "target",
-      "play_seconds",
-      "mode",
-      "sound_enabled",
-      "promo",
-      "app_url",
-      "user_agent",
-    ]);
+    sheet.appendRow(HEADERS);
     sheet.setFrozenRows(1);
+  } else {
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
   }
 
   return sheet;
