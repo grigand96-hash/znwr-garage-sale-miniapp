@@ -64,6 +64,7 @@ const restartButton = document.querySelector("#restartButton");
 const gameoverMenuButton = document.querySelector("#gameoverMenuButton");
 const prizePanel = document.querySelector("#prizePanel");
 const gameoverPanel = document.querySelector("#gameoverPanel");
+const gameoverCopyNode = document.querySelector("#gameoverCopy");
 const resultPlaceNode = document.querySelector("#resultPlace");
 const resultSummaryNode = document.querySelector("#resultSummary");
 const resultBestGameNode = document.querySelector("#resultBestGame");
@@ -833,29 +834,46 @@ async function shareToInstagram() {
   }
 }
 
-// Игры бесконечные — забег всегда кончается проигрышем; показываем экран
-// результата (рейтинг, шеринг, инфо о сейле).
+// Забег кончается проигрышем. Если базовый уровень пройден (level >= 2) —
+// результат идёт в рейтинг и показываем экран результата. Если игрок не осилил
+// даже базу — в рейтинг НЕ пишем, показываем «попробуй ещё».
 function gameOver() {
-  recordRatingResult("game_over");
-  updateResultPanel();
-  fetchLeaderboard(true).then(() => {
-    if (!prizePanel.hidden) updateResultPanel();
-  });
-  prizePanel.hidden = false;
-  gameoverPanel.hidden = true;
-  setMode("prize");
+  const clearedBase = state.level >= 2;
   stopMusic();
   playGameOverJingle();
+
+  if (clearedBase) {
+    recordRatingResult("game_over");
+    updateResultPanel();
+    fetchLeaderboard(true).then(() => {
+      if (!prizePanel.hidden) updateResultPanel();
+    });
+    gameoverPanel.hidden = true;
+    prizePanel.hidden = false;
+    setMode("prize");
+  } else {
+    showTryAgain();
+    prizePanel.hidden = true;
+    gameoverPanel.hidden = false;
+    setMode("gameover");
+  }
+
   const aggregate = aggregateLocalRating();
   logEvent("game_over", {
-    total_rating: aggregate?.rating || 0,
-    games_done: aggregate?.gamesDone || 0,
-    rating_place: localRatingPlace() || "",
-    share_count: shareCount(),
+    cleared_base: clearedBase,
     level: state.level,
     result_score: state.score,
+    total_rating: aggregate?.rating || 0,
+    games_done: aggregate?.gamesDone || 0,
+    share_count: shareCount(),
   });
   tg?.HapticFeedback?.notificationOccurred("error");
+}
+
+function showTryAgain() {
+  gameoverCopyNode.textContent = isQualified()
+    ? "ТЫ УЖЕ В РОЗЫГРЫШЕ. ЗА ЭТОТ ЗАБЕГ ОЧКОВ НЕТ — ПОПРОБУЙ ЕЩЁ!"
+    : "ТЫ ПОКА НЕ В РОЗЫГРЫШЕ. ПРОЙДИ БАЗОВЫЙ УРОВЕНЬ, ЧТОБЫ ПОПАСТЬ.";
 }
 
 function getPlaySeconds() {
