@@ -10,7 +10,10 @@ Use this Apps Script as a tiny backend for ZNWR Garage Sale analytics.
 4. Paste `Code.gs`.
 5. In Apps Script, open `Project Settings` -> `Script properties` and add:
    - `SPREADSHEET_ID`: your Google Sheet ID.
-   - `BOT_TOKEN`: Telegram bot token from BotFather. Optional for testing, recommended for launch.
+   - `BOT_TOKEN`: Telegram bot token from BotFather. Optional for testing, required for launch:
+     while it is empty, anyone can POST forged scores into the public rating. Once set, only
+     events with a valid Telegram `initData` signature enter the `rating` sheet (the `events`
+     log still records everything, with `telegram_verified` showing the verification result).
 6. Deploy -> New deployment -> Web app:
    - Execute as: `Me`
    - Who has access: `Anyone`

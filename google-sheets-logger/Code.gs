@@ -94,7 +94,7 @@ function doPost(e) {
     ];
 
     sheet.appendRow(row);
-    handleRatingEvent_(spreadsheetId, payload);
+    handleRatingEvent_(spreadsheetId, payload, verification.ok, Boolean(botToken));
     return json_({ ok: true });
   } catch (error) {
     return json_({ ok: false, error: String(error) });
@@ -134,9 +134,11 @@ function handleRatingGet_(spreadsheetId, e) {
   return json_({ ok: true, players });
 }
 
-function handleRatingEvent_(spreadsheetId, payload) {
+function handleRatingEvent_(spreadsheetId, payload, verified, tokenConfigured) {
   const event = payload.event || "";
   if (event !== "rating_result" && event !== "instagram_share_intent") return;
+  // With BOT_TOKEN configured, only Telegram-signed events may enter the public rating.
+  if (tokenConfigured && !verified) return;
   const key = playerKey_(payload);
   if (!key) return;
 
