@@ -432,7 +432,7 @@ function chanceMultiplier() {
 
 function updateChanceUi() {
   chanceText.textContent = `ШАНС В РОЗЫГРЫШЕ: X${chanceMultiplier()}`;
-  instagramShareButton.textContent = hasRepostBoost() ? "X2 ACTIVE" : "SHARE TO INSTA";
+  instagramShareButton.textContent = hasRepostBoost() ? "X2 АКТИВЕН" : "СТОРИС В INSTA";
   instagramShareButton.disabled = false;
 }
 
@@ -569,13 +569,13 @@ function updateResultPanel() {
   const aggregate = aggregateLocalRating();
   const place = localRatingPlace();
   if (!aggregate) {
-    resultPlaceNode.textContent = "RATING";
+    resultPlaceNode.textContent = "РЕЙТИНГ";
     resultSummaryNode.textContent = "СЫГРАЙ, ЧТОБЫ ПОПАСТЬ В РЕЙТИНГ";
     resultBestGameNode.textContent = "";
   } else {
-    resultPlaceNode.textContent = place ? `#${place}` : "RATING";
-    resultSummaryNode.textContent = `${aggregate.rating} PTS · ${aggregate.gamesDone}/3 GAMES`;
-    resultBestGameNode.textContent = `BEST ${aggregate.bestGame}`;
+    resultPlaceNode.textContent = place ? `#${place}` : "РЕЙТИНГ";
+    resultSummaryNode.textContent = `${aggregate.rating} PTS · ${aggregate.gamesDone}/3 ИГР`;
+    resultBestGameNode.textContent = `ЛУЧШАЯ: ${aggregate.bestGame}`;
   }
   resultChanceNode.textContent = `ШАНС В РОЗЫГРЫШЕ: X${chanceMultiplier()}`;
   prizeShareButton.textContent = hasRepostBoost() ? "ШАНС X2 АКТИВЕН" : "УДВОИТЬ ШАНС";
@@ -603,7 +603,7 @@ function renderRating() {
     player.className = "player";
     player.textContent = row.name;
     game.className = "meta";
-    game.textContent = `${row.gamesDone}/3 · BEST ${row.bestGame}`;
+    game.textContent = `${row.gamesDone}/3 · ${row.bestGame}`;
     score.textContent = `${row.rating} PTS`;
     if (row.chance === 2) score.textContent += " X2";
     player.appendChild(game);
@@ -695,8 +695,8 @@ function shareImageBlob() {
   storyCtx.fillStyle = "#0025ff";
   drawStoryLine(storyCtx, ratingText, 540, 1115, 68, "center", "#0025ff");
   drawStoryLine(storyCtx, `${currentRating} RATING PTS`, 540, 1200, 50, "center", "#0025ff");
-  drawStoryLine(storyCtx, `${gamesDone}/3 GAMES · ${totalSeconds} SEC`, 540, 1260, 40, "center", "#0025ff");
-  drawStoryLine(storyCtx, `BEST ${currentGame}`, 540, 1310, 34, "center", "#0025ff");
+  drawStoryLine(storyCtx, `${gamesDone}/3 ИГР · ${totalSeconds} СЕК`, 540, 1260, 40, "center", "#0025ff");
+  drawStoryLine(storyCtx, `ЛУЧШАЯ: ${currentGame}`, 540, 1310, 34, "center", "#0025ff");
 
   drawStoryLine(storyCtx, `ШАНС НА ПЛАЩ X${chanceMultiplier()}`, 150, 1430, 52);
   drawStoryLine(storyCtx, "ЗАХОДИ В БОТА:", 150, 1580, 44);
@@ -713,8 +713,8 @@ function shareImageBlob() {
 async function shareToInstagram() {
   instagramShareButton.disabled = true;
   prizeShareButton.disabled = true;
-  instagramShareButton.textContent = "MAKING PNG";
-  prizeShareButton.textContent = "MAKING PNG";
+  instagramShareButton.textContent = "ГОТОВИМ PNG";
+  prizeShareButton.textContent = "ГОТОВИМ PNG";
   try {
     const blob = await shareImageBlob();
     const file = new File([blob], "znwr-arcade-sale.png", { type: "image/png" });
@@ -725,8 +725,8 @@ async function shareToInstagram() {
     };
 
     if (navigator.canShare?.(shareData)) {
-      instagramShareButton.textContent = "OPEN SHARE";
-      prizeShareButton.textContent = "OPEN SHARE";
+      instagramShareButton.textContent = "ШЕРИМ...";
+      prizeShareButton.textContent = "ШЕРИМ...";
       await navigator.share(shareData);
     } else {
       const link = document.createElement("a");

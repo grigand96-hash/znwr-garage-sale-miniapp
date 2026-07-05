@@ -21,8 +21,7 @@
 
         <section class="cabinet" aria-label="Аркадный автомат ZNWR">
           <div class="cabinet-marquee">
-            <span>ZNWR ARCADE SALE</span>
-            <strong>GARAGE<br />MACHINE</strong>
+            <strong>ZNWR ARCADE SALE</strong>
           </div>
           <div class="cabinet-screen">
             <div class="scanline"></div>
@@ -31,15 +30,10 @@
               <p>GARAGE + SAMPLE SALE</p>
               <strong>20-90%</strong>
               <span>10-12 ИЮЛЯ · ХЛЕБОЗАВОД, НЕМИГА</span>
-            </div>
-            <div class="raffle-card">
-              <p>РОЗЫГРЫШ ПЛАЩА</p>
-              <span>ПРИЗ: ПЛАЩ ИНЖЕНЕРА ZNWR</span>
-              <span>РЕЙТИНГ = ЛУЧШИЕ РЕЗУЛЬТАТЫ 3 ИГР</span>
-              <span>РЕПОСТ СТОРИС = ШАНС X2</span>
+              <span>ИГРАЙ И ВЫИГРАЙ ПЛАЩ ИНЖЕНЕРА ZNWR</span>
             </div>
             <section class="panel intro-panel" id="introPanel">
-              <p class="kicker">SELECT GAME</p>
+              <p class="kicker">ВЫБЕРИ ИГРУ</p>
               <div class="game-menu" aria-label="Выбор игры">
                 <button class="game-option is-selected" data-game="pac" type="button">PAC SALE</button>
                 <button class="game-option" data-game="invaders" type="button">CODE INVADERS</button>
@@ -47,19 +41,12 @@
               </div>
               <div class="intro-actions">
                 <button class="primary" id="startButton" type="button">START</button>
-                <button class="secondary compact" id="ratingIntroButton" type="button">RATING</button>
+                <button class="secondary compact" id="ratingIntroButton" type="button">РЕЙТИНГ</button>
                 <button class="secondary compact" id="znwrButton" type="button">ZNWR</button>
                 <button class="secondary compact full" id="rulesIntroButton" type="button">УСЛОВИЯ РОЗЫГРЫША</button>
               </div>
             </section>
           </div>
-          <div class="cabinet-controls" aria-hidden="true">
-            <span class="coin-slot"></span>
-            <span class="stick"></span>
-            <span class="cabinet-button"></span>
-            <span class="cabinet-button"></span>
-          </div>
-          <div class="cabinet-base"></div>
         </section>
 
         <canvas id="game" width="360" height="640" aria-label="Игра ZNWR Garage Sale"></canvas>
@@ -67,23 +54,23 @@
         <button class="sound-toggle" id="soundButton" type="button" aria-label="Выключить звук">SOUND ON</button>
 
         <div class="game-tools" id="gameTools">
-          <button class="tool-button" id="menuButton" type="button">MENU</button>
-          <button class="tool-button" id="ratingButton" type="button">RATING</button>
-          <button class="tool-button" id="saleButton" type="button">SALE INFO</button>
+          <button class="tool-button" id="menuButton" type="button">МЕНЮ</button>
+          <button class="tool-button" id="ratingButton" type="button">РЕЙТИНГ</button>
+          <button class="tool-button" id="saleButton" type="button">СЕЙЛ</button>
         </div>
 
         <section class="panel rating-panel" id="ratingPanel" hidden>
-          <p class="kicker">PUBLIC RATING</p>
+          <p class="kicker">ОБЩИЙ РЕЙТИНГ</p>
           <h2>TOP PLAYERS</h2>
           <p class="rating-prize">ОБЩИЙ РЕЙТИНГ = СУММА ЛУЧШИХ РЕЗУЛЬТАТОВ 3 ИГР. PAC X1 · CODE X1.12 · BREAKOUT X1.06 + БОНУС ЗА СКОРОСТЬ.</p>
           <p class="rating-boost" id="chanceText">ШАНС В РОЗЫГРЫШЕ: X1</p>
           <ol class="rating-list" id="ratingList"></ol>
           <div class="actions">
             <button class="primary" id="tgShareButton" type="button">ПОЗВАТЬ ДРУГА</button>
-            <button class="primary" id="instagramShareButton" type="button">SHARE TO INSTA</button>
+            <button class="primary" id="instagramShareButton" type="button">СТОРИС В INSTA</button>
             <button class="secondary" id="rulesButton" type="button">ПРАВИЛА</button>
-            <button class="primary" id="ratingCloseButton" type="button">BACK</button>
-            <button class="secondary" id="ratingMenuButton" type="button">MENU</button>
+            <button class="primary" id="ratingCloseButton" type="button">НАЗАД</button>
+            <button class="secondary" id="ratingMenuButton" type="button">МЕНЮ</button>
           </div>
         </section>
 
@@ -102,16 +89,16 @@
           </div>
           <div class="actions">
             <button class="primary" id="saleDetailsButton" type="button">ПОДРОБНЕЕ</button>
-            <button class="primary" id="saleCloseButton" type="button">BACK</button>
-            <button class="secondary" id="saleMenuButton" type="button">MENU</button>
+            <button class="primary" id="saleCloseButton" type="button">НАЗАД</button>
+            <button class="secondary" id="saleMenuButton" type="button">МЕНЮ</button>
           </div>
         </section>
 
         <section class="panel prize-panel" id="prizePanel" hidden>
-          <p class="kicker">RESULT SAVED</p>
+          <p class="kicker">РЕЗУЛЬТАТ ЗАПИСАН</p>
           <h2 id="resultPlace">#0</h2>
-          <p class="result-copy" id="resultSummary">0 PTS · 0/3 GAMES</p>
-          <p class="result-copy" id="resultBestGame">BEST GAME</p>
+          <p class="result-copy" id="resultSummary">0 PTS · 0/3 ИГР</p>
+          <p class="result-copy" id="resultBestGame"></p>
           <p class="result-copy" id="resultChance">ШАНС В РОЗЫГРЫШЕ: X1</p>
           <p class="result-copy">СЕЙЛ 10–12 ИЮЛЯ · ХЛЕБОЗАВОД, НЕМИГА</p>
           <div class="actions">
@@ -123,13 +110,13 @@
         </section>
 
         <section class="panel gameover-panel" id="gameoverPanel" hidden>
-          <p class="kicker">TRY AGAIN</p>
+          <p class="kicker">ПОПРОБУЙ ЕЩЁ</p>
           <h2>GAME OVER</h2>
-          <button class="primary" id="restartButton" type="button">AGAIN</button>
+          <button class="primary" id="restartButton" type="button">СНОВА</button>
         </section>
 
         <section class="panel rules-panel" id="rulesPanel" hidden>
-          <p class="kicker">RAFFLE RULES</p>
+          <p class="kicker">РОЗЫГРЫШ ПЛАЩА</p>
           <h2>УСЛОВИЯ РОЗЫГРЫША</h2>
           <p class="sale-copy">ПРИЗ: ПЛАЩ ИНЖЕНЕРА ZNWR</p>
           <p class="sale-copy">УЧАСТВУЮТ ВСЕ, КТО СЫГРАЛ ХОТЯ БЫ ОДНУ ИГРУ ЧЕРЕЗ TELEGRAM</p>
@@ -138,8 +125,8 @@
           <p class="sale-copy">ИТОГИ: 13 ИЮЛЯ В КАНАЛЕ ZNWR</p>
           <p class="sale-copy">ПОБЕДИТЕЛЮ НАПИШЕМ В TELEGRAM</p>
           <div class="actions">
-            <button class="primary" id="rulesCloseButton" type="button">BACK</button>
-            <button class="secondary" id="rulesMenuButton" type="button">MENU</button>
+            <button class="primary" id="rulesCloseButton" type="button">НАЗАД</button>
+            <button class="secondary" id="rulesMenuButton" type="button">МЕНЮ</button>
           </div>
         </section>
 
