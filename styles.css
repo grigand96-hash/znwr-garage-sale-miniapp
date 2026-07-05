@@ -42,20 +42,23 @@ button:disabled {
 }
 
 .app {
+  position: relative;
   min-height: var(--app-h);
   display: grid;
   place-items: center;
+  overflow: hidden;
   background: var(--blue);
 }
 
 .screen {
   position: relative;
+  z-index: 1;
   width: min(100vw, 470px);
   height: var(--app-h);
   min-height: 0;
   max-height: var(--app-h);
   overflow: hidden;
-  background: var(--blue);
+  background: transparent;
   isolation: isolate;
 }
 
@@ -132,21 +135,54 @@ button:disabled {
   max-height: 900px;
   transform: translateX(-50%);
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  padding: 10px 14px 14px;
-  border: 5px solid var(--white);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding: 14px 18px 104px;
+  border: 4px solid var(--white);
   background: var(--blue);
   box-shadow:
-    10px 10px 0 rgba(255, 255, 255, 0.22),
-    inset 0 0 0 8px var(--blue),
+    8px 8px 0 rgba(255, 255, 255, 0.22),
+    inset 0 0 0 9px var(--blue),
     inset 0 0 0 12px var(--white);
+}
+
+.cabinet::before,
+.cabinet::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.cabinet::before {
+  left: 8%;
+  right: 8%;
+  bottom: 32px;
+  height: 58px;
+  border: 4px solid var(--white);
+  background:
+    linear-gradient(var(--white), var(--white)) 13% 30% / 18% 15px no-repeat,
+    linear-gradient(var(--white), var(--white)) 45% 23% / 8% 28px no-repeat,
+    linear-gradient(var(--white), var(--white)) 66% 32% / 11% 17px no-repeat,
+    linear-gradient(var(--white), var(--white)) 82% 32% / 11% 17px no-repeat,
+    var(--blue);
+  box-shadow: 5px 5px 0 var(--shadow);
+  clip-path: polygon(4% 0, 96% 0, 100% 100%, 0 100%);
+}
+
+.cabinet::after {
+  left: 20%;
+  right: 20%;
+  bottom: 8px;
+  height: 16px;
+  border: 4px solid var(--white);
+  border-top: 0;
+  background: var(--blue);
 }
 
 .cabinet-marquee {
   display: grid;
   place-items: center;
   align-content: center;
-  margin: 4px 14px 10px;
+  margin: 0 6px 12px;
   border: 4px solid var(--white);
   background: var(--white);
   color: var(--blue);
@@ -166,9 +202,8 @@ button:disabled {
   margin: 0 12px;
   display: grid;
   justify-items: center;
-  align-content: safe center;
-  gap: 4px;
-  padding: 16px 16px 14px;
+  align-content: stretch;
+  padding: 18px 16px;
   border: 7px solid var(--white);
   background: var(--blue);
   overflow-y: auto;
@@ -208,10 +243,10 @@ button:disabled {
   z-index: 1;
   width: min(100%, 286px);
   display: grid;
-  gap: 3px;
-  margin-top: 8px;
-  padding: 6px 10px;
-  border: 2px solid var(--white);
+  gap: 8px;
+  margin-top: 0;
+  padding: 14px 12px 12px;
+  border: 3px solid var(--white);
   text-align: center;
   font-weight: 900;
 }
@@ -219,12 +254,12 @@ button:disabled {
 .sale-card p,
 .sale-card span {
   margin: 0;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.15;
 }
 
 .sale-card strong {
-  font-size: clamp(24px, 7.2vw, 36px);
+  font-size: clamp(42px, 13vw, 60px);
   line-height: 0.9;
 }
 
@@ -249,13 +284,34 @@ button:disabled {
   z-index: 1;
   left: auto;
   bottom: auto;
-  width: min(100%, 270px);
-  margin-top: 12px;
+  width: min(100%, 286px);
+  min-height: 100%;
   transform: none;
   padding: 0;
   background: transparent;
   border: 0;
   box-shadow: none;
+  display: grid;
+  grid-template-rows: minmax(176px, 1.15fr) auto minmax(72px, 0.55fr);
+  align-items: center;
+  gap: clamp(14px, 3.4vh, 34px);
+}
+
+.intro-top,
+.intro-games {
+  display: grid;
+  justify-items: center;
+  width: 100%;
+}
+
+.intro-top {
+  align-self: start;
+  gap: clamp(12px, 2.6vh, 24px);
+  padding-top: clamp(10px, 2.5vh, 28px);
+}
+
+.intro-games {
+  gap: 10px;
 }
 
 .game-menu {
@@ -348,9 +404,11 @@ h2 {
 
 .intro-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   width: 100%;
   gap: 7px;
+  align-self: end;
+  padding-bottom: clamp(4px, 1.6vh, 16px);
 }
 
 .intro-actions .primary,
@@ -363,8 +421,8 @@ h2 {
 }
 
 .intro-actions .full {
-  grid-column: 1 / -1;
-  font-size: 11px;
+  grid-column: auto;
+  font-size: 13px;
 }
 
 .actions {
@@ -379,6 +437,7 @@ h2 {
   z-index: 5;
   top: max(28px, env(safe-area-inset-top));
   right: 8%;
+  display: none;
   min-height: 36px;
   padding: 6px 10px;
   border: 2px solid var(--white);
@@ -395,11 +454,11 @@ h2 {
   position: absolute;
   z-index: 5;
   left: 8%;
-  right: 8%;
+  right: auto;
   top: max(64px, calc(env(safe-area-inset-top) + 42px));
   display: flex;
   gap: 6px;
-  justify-content: space-between;
+  justify-content: flex-start;
 }
 
 .tool-button {
@@ -418,6 +477,7 @@ h2 {
 .sale-panel,
 .rating-panel,
 .rules-panel,
+.onboarding-panel,
 .prize-panel,
 .gameover-panel {
   top: 50%;
@@ -427,6 +487,111 @@ h2 {
   max-height: calc(var(--app-h) - 24px);
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+.prize-panel {
+  gap: 12px;
+}
+
+.prize-panel .actions {
+  width: 100%;
+  gap: 10px;
+}
+
+.prize-panel .primary,
+.prize-panel .secondary {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.prize-panel #againButton,
+.prize-panel #otherGamesButton {
+  flex-basis: calc(50% - 5px);
+}
+
+.rating-panel {
+  height: min(88vh, calc(var(--app-h) - 42px));
+  max-height: calc(var(--app-h) - 42px);
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  align-content: stretch;
+  overflow: hidden;
+}
+
+.rating-panel .actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.rating-panel .primary,
+.rating-panel .secondary {
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  padding: 9px 8px;
+  font-size: 12px;
+}
+
+.rating-panel #tgShareButton,
+.rating-panel #instagramShareButton {
+  grid-column: 1 / -1;
+}
+
+.onboarding-panel {
+  z-index: 8;
+  width: min(86%, 360px);
+  gap: 16px;
+}
+
+.onboarding-copy {
+  display: grid;
+  gap: 9px;
+  width: 100%;
+}
+
+.onboarding-prize-image {
+  width: min(46vw, 172px);
+  max-height: 210px;
+  justify-self: center;
+  image-rendering: pixelated;
+}
+
+.onboarding-copy p {
+  margin: 0;
+  padding: 8px 10px;
+  border: 2px solid var(--white);
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.2;
+  font-weight: 900;
+}
+
+.onboarding-dots {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.onboarding-dots span {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--white);
+  background: transparent;
+}
+
+.onboarding-dots .is-active {
+  background: var(--white);
+}
+
+.onboarding-actions {
+  width: 100%;
+}
+
+.onboarding-actions .primary,
+.onboarding-actions .secondary {
+  flex: 1 1 120px;
+  min-width: 0;
 }
 
 .sale-details {
@@ -481,11 +646,14 @@ h2 {
   display: grid;
   gap: 7px;
   width: 100%;
-  max-height: 250px;
+  min-height: 0;
   margin: 0;
-  padding: 0;
+  padding: 0 4px 0 0;
   list-style: none;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .rating-list li {
@@ -564,7 +732,6 @@ h2 {
 [data-state="intro"] #game,
 [data-state="intro"] .scoreboard,
 [data-state="intro"] .game-label,
-[data-state="intro"] .sound-toggle,
 [data-state="intro"] .game-tools {
   display: none;
 }
@@ -596,6 +763,9 @@ h2 {
   pointer-events: none;
 }
 
+[data-state="playing"] .sound-toggle,
+[data-state="prize"] .sound-toggle,
+[data-state="gameover"] .sound-toggle,
 [data-state="prize"] .game-tools,
 [data-state="gameover"] .game-tools {
   display: none;
@@ -611,11 +781,16 @@ h2 {
   }
 
   .intro-panel {
-    margin-top: 10px;
+    grid-template-rows: minmax(88px, 0.7fr) auto minmax(54px, 0.45fr);
+    gap: 10px;
+  }
+
+  .intro-top {
+    gap: 8px;
+    padding-top: 6px;
   }
 
   .sale-card {
-    margin-top: 6px;
     padding: 6px 8px;
   }
 
@@ -626,5 +801,9 @@ h2 {
   .game-option {
     min-height: 34px;
     padding: 7px 9px;
+  }
+
+  .intro-actions {
+    padding-bottom: 4px;
   }
 }

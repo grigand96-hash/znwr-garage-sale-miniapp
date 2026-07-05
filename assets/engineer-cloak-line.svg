@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 520" role="img" aria-labelledby="title desc">
+  <title id="title">Плащ Инженера ZNWR в пиксельной линейной стилистике</title>
+  <desc id="desc">Белый пиксельный контур человека в плаще инженера с высоким воротом и декоративной дискетой на груди.</desc>
+  <g fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M148 56h64v16h24v48h-16v24h-16v24h-48v-24h-16v-24h-16V72h24z" />
+    <path d="M128 164h104l36 44v232H92V208z" />
+    <path d="M128 164l-24 52-28 208h52z" />
+    <path d="M232 164l24 52 28 208h-52z" />
+    <path d="M128 440h104" />
+    <path d="M132 472h96" />
+  </g>
+  <g fill="#ffffff">
+    <rect x="156" y="84" width="12" height="12" />
+    <rect x="192" y="84" width="12" height="12" />
+    <rect x="168" y="116" width="24" height="8" />
+    <rect x="216" y="244" width="58" height="48" />
+    <rect x="224" y="252" width="42" height="12" />
+    <rect x="224" y="272" width="12" height="12" />
+    <rect x="242" y="272" width="24" height="5" />
+    <rect x="242" y="282" width="24" height="5" />
+  </g>
+  <g fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="square" stroke-linejoin="miter">
+    <path d="M216 244h58v48h-58z" />
+    <path d="M226 236h38" />
+    <path d="M224 252h42v12h-42z" />
+    <path d="M224 272h12v12h-12z" />
+  </g>
+</svg>

@@ -55,6 +55,13 @@ const rulesPanel = document.querySelector("#rulesPanel");
 const rulesIntroButton = document.querySelector("#rulesIntroButton");
 const rulesButton = document.querySelector("#rulesButton");
 const rulesCloseButton = document.querySelector("#rulesCloseButton");
+const onboardingPanel = document.querySelector("#onboardingPanel");
+const onboardingKicker = document.querySelector("#onboardingKicker");
+const onboardingTitle = document.querySelector("#onboardingTitle");
+const onboardingCopy = document.querySelector("#onboardingCopy");
+const onboardingBackButton = document.querySelector("#onboardingBackButton");
+const onboardingNextButton = document.querySelector("#onboardingNextButton");
+const onboardingDots = [...document.querySelectorAll(".onboarding-dots span")];
 const tgShareButton = document.querySelector("#tgShareButton");
 const prizeTgButton = document.querySelector("#prizeTgButton");
 const prizeSaleButton = document.querySelector("#prizeSaleButton");
@@ -81,6 +88,7 @@ const ratingStorageKey = "znwr-garage-sale-rating";
 const sharesStorageKey = "znwr-garage-sale-shares";
 const legacyRepostStorageKey = "znwr-garage-sale-repost";
 const qualifiedStorageKey = "znwr-garage-sale-qualified";
+const onboardingStorageKey = "znwr-garage-sale-onboarding-v1";
 const shareBonusPoints = 150;
 const shareBonusMax = 20;
 const analyticsEndpoint = "https://script.google.com/macros/s/AKfycbyyVhu_3TZ0X9NdyFIE0B2EJiCAlF18Eglhc5w2wOOQLJQ8hELMUHsmyDUCNRUYUMr2Dg/exec";
@@ -108,6 +116,51 @@ const demoLeaders = [
 let serverLeaders = null;
 let serverLeadersLoadedAt = 0;
 let serverLeadersPromise = null;
+
+const onboardingScreens = [
+  {
+    kicker: "ZNWR SALE",
+    title: "GARAGE + SAMPLE SALE",
+    lines: [
+      "10-12 ИЮЛЯ",
+      "ХЛЕБОЗАВОД, НЕМИГА",
+      "СКИДКИ ОТ 20% ДО 90%",
+      "АРХИВНЫЕ И SAMPLE-ВЕЩИ ZNWR",
+    ],
+  },
+  {
+    kicker: "РОЗЫГРЫШ",
+    title: "КАК УЧАСТВОВАТЬ",
+    lines: [
+      "РЕЙТИНГ = ЛУЧШИЕ РЕЗУЛЬТАТЫ В 3 ИГРАХ",
+      "ПРОЙДИ БАЗОВЫЙ УРОВЕНЬ — ТЫ В РОЗЫГРЫШЕ",
+      "ПОСЛЕ БАЗЫ МОЖНО ИГРАТЬ ДАЛЬШЕ",
+      "НОВЫЕ УРОВНИ ДОБАВЛЯЮТ ОЧКИ В РЕЙТИНГ",
+      "ДАЛЬНИЕ УРОВНИ ДАЮТ МЕНЬШЕ ОЧКОВ",
+      "ПРИЗ: ПЛАЩ ИНЖЕНЕРА ZNWR",
+    ],
+  },
+  {
+    kicker: "ШАНСЫ",
+    title: "РЕПОСТ ДАЁТ БОНУС",
+    lines: [
+      "СДЕЛАЙ PNG ДЛЯ СТОРИС ИЛИ ПОДЕЛИСЬ В TG",
+      `КАЖДЫЙ РЕПОСТ = +${shareBonusPoints} ОЧКОВ`,
+      "В INSTAGRAM ОТМЕТЬ @ZNWR.STORE",
+      "ПРАВИЛА МОЖНО ПЕРЕЧИТАТЬ С ГЛАВНОГО ЭКРАНА",
+    ],
+  },
+  {
+    kicker: "ПРИЗ",
+    title: "ПЛАЩ ИНЖЕНЕРА",
+    image: "./assets/engineer-cloak-line.svg",
+    lines: [
+      "СРЕДИ УЧАСТНИКОВ РАЗЫГРАЕМ ПЛАЩ ZNWR",
+      "БОЛЬШЕ ОЧКОВ = ВЫШЕ ШАНС",
+      "ИТОГИ ПОСЛЕ GARAGE + SAMPLE SALE",
+    ],
+  },
+];
 
 const maze = [
   "#############",
@@ -171,6 +224,7 @@ const state = {
   gameStartedAt: 0,
   dangerUntil: 0,
   infoOpen: false,
+  onboardingStep: 0,
   soundEnabled: localStorage.getItem(soundStorageKey) !== "off",
 };
 
@@ -236,7 +290,7 @@ function updateGameChrome() {
 function updateHud() {
   scoreNode.textContent = String(state.score).padStart(2, "0");
   targetNode.textContent = String(state.level);
-  gameLabelNode.textContent = gameModes[state.gameType].label;
+  if (gameLabelNode) gameLabelNode.textContent = gameModes[state.gameType].label;
 }
 
 function resetGame() {
@@ -394,6 +448,7 @@ function startGame(gameType = state.gameType) {
   ratingPanel.hidden = true;
   prizePanel.hidden = true;
   gameoverPanel.hidden = true;
+  onboardingPanel.hidden = true;
   resetGame();
   setMode("playing");
   resize();
@@ -409,6 +464,7 @@ function returnToMenu() {
   prizePanel.hidden = true;
   gameoverPanel.hidden = true;
   rulesPanel.hidden = true;
+  onboardingPanel.hidden = true;
   setMode("intro");
   resetGame();
   startMusic();
@@ -419,6 +475,7 @@ function returnToMenu() {
 function openSaleInfo() {
   state.infoOpen = true;
   ratingPanel.hidden = true;
+  onboardingPanel.hidden = true;
   salePanel.hidden = false;
   logEvent("sale_info_open");
   tg?.HapticFeedback?.impactOccurred("light");
@@ -452,6 +509,7 @@ function openSaleChannel() {
 function openRules() {
   state.infoOpen = state.mode === "playing";
   rulesPanel.hidden = false;
+  onboardingPanel.hidden = true;
   logEvent("rules_open");
   tg?.HapticFeedback?.impactOccurred("light");
 }
@@ -460,6 +518,79 @@ function closeRules() {
   state.infoOpen = false;
   rulesPanel.hidden = true;
   tg?.HapticFeedback?.impactOccurred("light");
+}
+
+function renderOnboarding() {
+  const screen = onboardingScreens[state.onboardingStep];
+  onboardingKicker.textContent = screen.kicker;
+  onboardingTitle.textContent = screen.title;
+  onboardingCopy.innerHTML = "";
+  if (screen.image) {
+    const image = document.createElement("img");
+    image.className = "onboarding-prize-image";
+    image.src = screen.image;
+    image.alt = screen.title;
+    onboardingCopy.appendChild(image);
+  }
+  screen.lines.forEach((line) => {
+    const item = document.createElement("p");
+    item.textContent = line;
+    onboardingCopy.appendChild(item);
+  });
+  onboardingDots.forEach((dot, index) => {
+    dot.classList.toggle("is-active", index === state.onboardingStep);
+  });
+  onboardingBackButton.textContent = state.onboardingStep === 0 ? "ЗАКРЫТЬ" : "НАЗАД";
+  onboardingNextButton.textContent = state.onboardingStep === onboardingScreens.length - 1 ? "ИГРАТЬ" : "ДАЛЬШЕ";
+}
+
+function openOnboarding({ forced = false } = {}) {
+  state.onboardingStep = 0;
+  state.infoOpen = state.mode === "playing";
+  salePanel.hidden = true;
+  ratingPanel.hidden = true;
+  rulesPanel.hidden = true;
+  onboardingPanel.hidden = false;
+  renderOnboarding();
+  logEvent(forced ? "onboarding_reopen" : "onboarding_open");
+  tg?.HapticFeedback?.impactOccurred("light");
+}
+
+function closeOnboarding() {
+  localStorage.setItem(onboardingStorageKey, "done");
+  onboardingPanel.hidden = true;
+  state.infoOpen = false;
+  logEvent("onboarding_done", { onboarding_step: state.onboardingStep + 1 });
+  tg?.HapticFeedback?.impactOccurred("light");
+}
+
+function nextOnboarding() {
+  if (state.onboardingStep >= onboardingScreens.length - 1) {
+    closeOnboarding();
+    return;
+  }
+  state.onboardingStep += 1;
+  renderOnboarding();
+  tg?.HapticFeedback?.impactOccurred("light");
+}
+
+function previousOnboarding() {
+  if (state.onboardingStep === 0) {
+    closeOnboarding();
+    return;
+  }
+  state.onboardingStep -= 1;
+  renderOnboarding();
+  tg?.HapticFeedback?.impactOccurred("light");
+}
+
+function maybeShowOnboarding() {
+  if (urlParams.get("onboarding") === "1") {
+    openOnboarding({ forced: true });
+    return;
+  }
+  if (localStorage.getItem(onboardingStorageKey) === "done") return;
+  openOnboarding();
 }
 
 function shareToTelegram() {
@@ -591,7 +722,7 @@ function fetchLeaderboard(force = false) {
   if (!force && serverLeaders && Date.now() - serverLeadersLoadedAt < 30000) {
     return Promise.resolve(serverLeaders);
   }
-  serverLeadersPromise = fetch(`${analyticsEndpoint}?action=rating&limit=10&ts=${Date.now()}`)
+  serverLeadersPromise = fetch(`${analyticsEndpoint}?action=rating&limit=30&ts=${Date.now()}`)
     .then((response) => response.json())
     .then((data) => {
       if (data?.ok && Array.isArray(data.players)) {
@@ -636,7 +767,7 @@ function combinedRatingRows() {
 }
 
 function leaderboardRows() {
-  return combinedRatingRows().slice(0, 6);
+  return combinedRatingRows().slice(0, 30);
 }
 
 function sortRatingRows(rows) {
@@ -732,6 +863,7 @@ function renderRating() {
 function openRating() {
   state.infoOpen = state.mode === "playing";
   salePanel.hidden = true;
+  onboardingPanel.hidden = true;
   renderRating();
   fetchLeaderboard(true).then(() => {
     if (!ratingPanel.hidden) renderRating();
@@ -1660,15 +1792,19 @@ onTap(prizeShareButton, () => { shareToInstagram().catch(() => {}); });
 onTap(saleDetailsButton, openSaleDetails);
 onTap(saleChannelButton, openSaleChannel);
 onTap(saleCloseButton, closeSaleInfo);
-onTap(rulesIntroButton, openRules);
-onTap(rulesButton, openRules);
+onTap(rulesIntroButton, () => openOnboarding({ forced: true }));
+onTap(rulesButton, () => openOnboarding({ forced: true }));
 onTap(rulesCloseButton, closeRules);
+onTap(onboardingBackButton, previousOnboarding);
+onTap(onboardingNextButton, nextOnboarding);
 onTap(tgShareButton, shareToTelegram);
 onTap(prizeTgButton, shareToTelegram);
-onTap(prizeSaleButton, () => {
-  prizePanel.hidden = true;
-  openSaleInfo();
-});
+if (prizeSaleButton) {
+  onTap(prizeSaleButton, () => {
+    prizePanel.hidden = true;
+    openSaleInfo();
+  });
+}
 
 bindPad(upButton, 0, -1);
 bindPad(downButton, 0, 1);
@@ -1751,4 +1887,5 @@ if (urlParams.get("debugResult") === "1") {
   setMode("prize");
 }
 updateSoundButton();
+maybeShowOnboarding();
 requestAnimationFrame(render);

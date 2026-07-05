@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#0025ff" />
     <title>ZNWR Garage Sale</title>
-    <link rel="stylesheet" href="./styles.css?v=18" />
+    <link rel="stylesheet" href="./styles.css?v=36" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body>
@@ -16,7 +16,6 @@
             <span id="score">00</span>
             <span>УР.</span><span id="target">1</span>
           </div>
-          <div class="game-label" id="gameLabel">PAC SALE</div>
         </div>
 
         <section class="cabinet" aria-label="Аркадный автомат ZNWR">
@@ -25,25 +24,26 @@
           </div>
           <div class="cabinet-screen">
             <div class="scanline"></div>
-            <p class="cabinet-kicker">1 PLAYER</p>
-            <div class="sale-card">
-              <p>GARAGE + SAMPLE SALE</p>
-              <strong>20-90%</strong>
-              <span>10-12 ИЮЛЯ · ХЛЕБОЗАВОД, НЕМИГА</span>
-              <span>ИГРАЙ И ВЫИГРАЙ ПЛАЩ ИНЖЕНЕРА ZNWR</span>
-            </div>
             <section class="panel intro-panel" id="introPanel">
-              <p class="kicker">ВЫБЕРИ ИГРУ</p>
-              <div class="game-menu" aria-label="Выбор игры">
-                <button class="game-option is-selected" data-game="pac" type="button">PAC SALE</button>
-                <button class="game-option" data-game="invaders" type="button">CODE INVADERS</button>
-                <button class="game-option" data-game="breakout" type="button">PROMO BREAKOUT</button>
+              <div class="intro-top">
+                <p class="cabinet-kicker">1 PLAYER</p>
+                <div class="sale-card">
+                  <p>GARAGE + SAMPLE SALE</p>
+                  <strong>20-90%</strong>
+                  <span>10-12 ИЮЛЯ · ХЛЕБОЗАВОД, НЕМИГА</span>
+                </div>
+              </div>
+              <div class="intro-games">
+                <p class="kicker">ВЫБЕРИ ИГРУ</p>
+                <div class="game-menu" aria-label="Выбор игры">
+                  <button class="game-option is-selected" data-game="pac" type="button">PAC SALE</button>
+                  <button class="game-option" data-game="invaders" type="button">CODE INVADERS</button>
+                  <button class="game-option" data-game="breakout" type="button">PROMO BREAKOUT</button>
+                </div>
               </div>
               <div class="intro-actions">
-                <button class="primary" id="startButton" type="button">START</button>
                 <button class="secondary compact" id="ratingIntroButton" type="button">РЕЙТИНГ</button>
-                <button class="secondary compact" id="znwrButton" type="button">ZNWR</button>
-                <button class="secondary compact full" id="rulesIntroButton" type="button">УСЛОВИЯ РОЗЫГРЫША</button>
+                <button class="secondary compact full" id="rulesIntroButton" type="button">ПРАВИЛА</button>
               </div>
             </section>
           </div>
@@ -55,14 +55,11 @@
 
         <div class="game-tools" id="gameTools">
           <button class="tool-button" id="menuButton" type="button">МЕНЮ</button>
-          <button class="tool-button" id="ratingButton" type="button">РЕЙТИНГ</button>
-          <button class="tool-button" id="saleButton" type="button">СЕЙЛ</button>
         </div>
 
         <section class="panel rating-panel" id="ratingPanel" hidden>
           <p class="kicker">РЕЙТИНГ ИГРОКОВ</p>
           <h2>TOP PLAYERS</h2>
-          <p class="rating-prize">РЕЙТИНГ = ОЧКИ ЗА 3 ИГРЫ + БОНУС ЗА РЕПОСТЫ. БОЛЬШЕ ОЧКОВ — ВЫШЕ ШАНС НА ПЛАЩ.</p>
           <p class="rating-boost" id="chanceText">КАЖДЫЙ РЕПОСТ = +150 ОЧКОВ</p>
           <ol class="rating-list" id="ratingList"></ol>
           <div class="actions">
@@ -98,11 +95,9 @@
           <p class="result-copy" id="resultSummary">0 ОЧКОВ · 0/3 ИГР</p>
           <p class="result-copy" id="resultBestGame"></p>
           <p class="result-copy" id="resultChance">КАЖДЫЙ РЕПОСТ = +150 ОЧКОВ</p>
-          <p class="result-copy">СЕЙЛ 10–12 ИЮЛЯ · ХЛЕБОЗАВОД, НЕМИГА</p>
           <div class="actions">
             <button class="primary" id="prizeShareButton" type="button">УВЕЛИЧИТЬ ШАНСЫ (INSTA)</button>
             <button class="primary" id="prizeTgButton" type="button">УВЕЛИЧИТЬ ШАНСЫ (TG)</button>
-            <button class="primary" id="prizeSaleButton" type="button">ИНФО О СЕЙЛЕ</button>
             <button class="primary" id="againButton" type="button">СНОВА</button>
             <button class="secondary" id="otherGamesButton" type="button">ДРУГИЕ ИГРЫ</button>
           </div>
@@ -136,6 +131,22 @@
           </div>
         </section>
 
+        <section class="panel onboarding-panel" id="onboardingPanel" hidden>
+          <p class="kicker" id="onboardingKicker">ZNWR SALE</p>
+          <h2 id="onboardingTitle">GARAGE + SAMPLE SALE</h2>
+          <div class="onboarding-copy" id="onboardingCopy"></div>
+          <div class="onboarding-dots" aria-label="Шаги онбординга">
+            <span class="is-active"></span>
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <div class="actions onboarding-actions">
+            <button class="secondary" id="onboardingBackButton" type="button">НАЗАД</button>
+            <button class="primary" id="onboardingNextButton" type="button">ДАЛЬШЕ</button>
+          </div>
+        </section>
+
         <div class="controls">
           <button class="pad pad-up" id="upButton" type="button" aria-label="Вверх">▲</button>
           <button class="pad pad-left" id="leftButton" type="button" aria-label="Влево">◀</button>
@@ -144,6 +155,6 @@
         </div>
       </section>
     </main>
-    <script src="./app.js?v=18"></script>
+    <script src="./app.js?v=36"></script>
   </body>
 </html>
