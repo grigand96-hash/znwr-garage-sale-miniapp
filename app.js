@@ -90,13 +90,15 @@ const legacyRepostStorageKey = "znwr-garage-sale-repost";
 const qualifiedStorageKey = "znwr-garage-sale-qualified";
 const onboardingStorageKey = "znwr-garage-sale-onboarding-v1";
 const shareBonusPoints = 150;
-const shareBonusMax = 20;
+const shareBonusDecay = 0.5;
+const shareBonusMaxPerSource = 6;
 const analyticsEndpoint = "https://script.google.com/macros/s/AKfycbyyVhu_3TZ0X9NdyFIE0B2EJiCAlF18Eglhc5w2wOOQLJQ8hELMUHsmyDUCNRUYUMr2Dg/exec";
 const urlParams = new URLSearchParams(window.location.search);
 const trafficSource = urlParams.get("src") || urlParams.get("utm_source") || "";
-const botShareUrl = urlParams.get("botLink") || "https://t.me/znwr_bot";
-const salePostUrl = urlParams.get("postLink") || "https://t.me/znwr";
+const botShareUrl = urlParams.get("botLink") || "https://t.me/znwrrr_bot";
+const salePostUrl = urlParams.get("postLink") || "https://t.me/znwr_home/6153";
 const znwrSiteUrl = "https://znwr.ru/?utm_source=tg_game";
+const cloakProductUrl = "https://znwr.ru/product/2042-31-560/plash-inzenera/?utm_source=tg_game";
 const sessionId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
 const gameModes = {
@@ -136,8 +138,11 @@ const onboardingScreens = [
       "ПРОЙДИ БАЗОВЫЙ УРОВЕНЬ — ТЫ В РОЗЫГРЫШЕ",
       "ПОСЛЕ БАЗЫ МОЖНО ИГРАТЬ ДАЛЬШЕ",
       "НОВЫЕ УРОВНИ ДОБАВЛЯЮТ ОЧКИ В РЕЙТИНГ",
-      "ДАЛЬНИЕ УРОВНИ ДАЮТ МЕНЬШЕ ОЧКОВ",
+      "ОЧКИ = БИЛЕТЫ: ЧЕМ БОЛЬШЕ, ТЕМ ВЫШЕ ШАНС",
       "ПРИЗ: ПЛАЩ ИНЖЕНЕРА ZNWR",
+    ],
+    links: [
+      { label: "ПОСТ О РОЗЫГРЫШЕ", url: salePostUrl },
     ],
   },
   {
@@ -145,19 +150,23 @@ const onboardingScreens = [
     title: "РЕПОСТ ДАЁТ БОНУС",
     lines: [
       "СДЕЛАЙ PNG ДЛЯ СТОРИС ИЛИ ПОДЕЛИСЬ В TG",
-      `КАЖДЫЙ РЕПОСТ = +${shareBonusPoints} ОЧКОВ`,
+      `1-Й РЕПОСТ В TG И INSTA = +${shareBonusPoints} ОЧКОВ`,
+      "КАЖДЫЙ СЛЕДУЮЩИЙ В ЭТОМ ЖЕ КАНАЛЕ = В 2 РАЗА МЕНЬШЕ",
       "В INSTAGRAM ОТМЕТЬ @ZNWR.STORE",
-      "ПРАВИЛА МОЖНО ПЕРЕЧИТАТЬ С ГЛАВНОГО ЭКРАНА",
     ],
   },
   {
     kicker: "ПРИЗ",
     title: "ПЛАЩ ИНЖЕНЕРА",
-    image: "./assets/engineer-cloak-line.svg",
+    image: "engineer-cloak",
     lines: [
       "СРЕДИ УЧАСТНИКОВ РАЗЫГРАЕМ ПЛАЩ ZNWR",
-      "БОЛЬШЕ ОЧКОВ = ВЫШЕ ШАНС",
+      "ПОБЕДИТЕЛЯ ВЫБЕРЕМ ВЗВЕШЕННЫМ РОЗЫГРЫШЕМ",
+      "БОЛЬШЕ ОЧКОВ = БОЛЬШЕ БИЛЕТОВ",
       "ИТОГИ ПОСЛЕ GARAGE + SAMPLE SALE",
+    ],
+    links: [
+      { label: "ПОСМОТРЕТЬ ПЛАЩ", url: cloakProductUrl },
     ],
   },
 ];
@@ -520,22 +529,70 @@ function closeRules() {
   tg?.HapticFeedback?.impactOccurred("light");
 }
 
+function createPrizeImageElement(title) {
+  const image = document.createElement("div");
+  image.className = "onboarding-prize-image";
+  image.setAttribute("role", "img");
+  image.setAttribute("aria-label", title);
+  image.innerHTML = `
+    <svg viewBox="0 0 360 520" aria-hidden="true" focusable="false">
+      <g fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="square" stroke-linejoin="miter">
+        <path d="M148 56h64v16h24v48h-16v24h-16v24h-48v-24h-16v-24h-16V72h24z" />
+        <path d="M128 164h104l36 44v232H92V208z" />
+        <path d="M128 164l-24 52-28 208h52z" />
+        <path d="M232 164l24 52 28 208h-52z" />
+        <path d="M128 440h104" />
+        <path d="M132 472h96" />
+      </g>
+      <g fill="#ffffff">
+        <rect x="156" y="84" width="12" height="12" />
+        <rect x="192" y="84" width="12" height="12" />
+        <rect x="168" y="116" width="24" height="8" />
+        <rect x="216" y="244" width="58" height="48" />
+        <rect x="224" y="252" width="42" height="12" />
+        <rect x="224" y="272" width="12" height="12" />
+        <rect x="242" y="272" width="24" height="5" />
+        <rect x="242" y="282" width="24" height="5" />
+      </g>
+      <g fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="square" stroke-linejoin="miter">
+        <path d="M216 244h58v48h-58z" />
+        <path d="M226 236h38" />
+        <path d="M224 252h42v12h-42z" />
+        <path d="M224 272h12v12h-12z" />
+      </g>
+    </svg>
+  `;
+  return image;
+}
+
 function renderOnboarding() {
   const screen = onboardingScreens[state.onboardingStep];
   onboardingKicker.textContent = screen.kicker;
   onboardingTitle.textContent = screen.title;
   onboardingCopy.innerHTML = "";
   if (screen.image) {
-    const image = document.createElement("img");
-    image.className = "onboarding-prize-image";
-    image.src = screen.image;
-    image.alt = screen.title;
-    onboardingCopy.appendChild(image);
+    if (screen.image === "engineer-cloak") {
+      onboardingCopy.appendChild(createPrizeImageElement(screen.title));
+    } else {
+      const image = document.createElement("img");
+      image.className = "onboarding-prize-image";
+      image.src = screen.image;
+      image.alt = screen.title;
+      onboardingCopy.appendChild(image);
+    }
   }
   screen.lines.forEach((line) => {
     const item = document.createElement("p");
     item.textContent = line;
     onboardingCopy.appendChild(item);
+  });
+  (screen.links || []).forEach((link) => {
+    const button = document.createElement("button");
+    button.className = "secondary onboarding-link";
+    button.type = "button";
+    button.textContent = link.label;
+    onTap(button, () => openExternalLink(link.url, `onboarding_${state.onboardingStep + 1}`));
+    onboardingCopy.appendChild(button);
   });
   onboardingDots.forEach((dot, index) => {
     dot.classList.toggle("is-active", index === state.onboardingStep);
@@ -596,7 +653,7 @@ function maybeShowOnboarding() {
 function shareToTelegram() {
   const place = localRatingPlace();
   const intro = place ? `Я #${place} в рейтинге ZNWR Arcade Sale! ` : "";
-  const text = `${intro}ZNWR GARAGE + SAMPLE SALE — 10-12 июля, Хлебозавод (Немига). Скидки 20-90% и розыгрыш плаща инженера. Сыграй в аркаду и попади в рейтинг!`;
+  const text = `${intro}ZNWR Garage + Sample Sale: 10-12 июля, Хлебозавод, Немига. Скидки от 20% до 90%. Сыграй в аркаду, попади в рейтинг и получи шанс выиграть Плащ Инженера: @znwrrr_bot`;
   const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(botShareUrl)}&text=${encodeURIComponent(text)}`;
   registerShare("telegram");
   if (tg?.openTelegramLink) {
@@ -616,6 +673,18 @@ function openZnwrSite() {
     tg.openLink(znwrSiteUrl);
   } else {
     window.open(znwrSiteUrl, "_blank", "noopener");
+  }
+  tg?.HapticFeedback?.impactOccurred("light");
+}
+
+function openExternalLink(url, source) {
+  logEvent("external_link_open", { source, url });
+  if (tg?.openTelegramLink && /^https:\/\/t\.me\//.test(url)) {
+    tg.openTelegramLink(url);
+  } else if (tg?.openLink) {
+    tg.openLink(url);
+  } else {
+    window.open(url, "_blank", "noopener");
   }
   tg?.HapticFeedback?.impactOccurred("light");
 }
@@ -648,29 +717,69 @@ function getLocalBest() {
   return aggregateLocalRating();
 }
 
+function normalizeShareSource(source) {
+  return source === "telegram" ? "telegram" : "instagram";
+}
+
+function shareCounts() {
+  const empty = { telegram: 0, instagram: 0 };
+  try {
+    const raw = localStorage.getItem(sharesStorageKey);
+    if (!raw && localStorage.getItem(legacyRepostStorageKey) === "on") {
+      return { ...empty, instagram: 1 };
+    }
+    const parsed = JSON.parse(raw || "null");
+    if (parsed && typeof parsed === "object") {
+      return {
+        telegram: Math.min(Math.max(Number(parsed.telegram) || 0, 0), shareBonusMaxPerSource),
+        instagram: Math.min(Math.max(Number(parsed.instagram) || 0, 0), shareBonusMaxPerSource),
+      };
+    }
+    const legacyCount = Math.min(Math.max(Number(raw) || 0, 0), shareBonusMaxPerSource);
+    return { ...empty, instagram: legacyCount };
+  } catch {
+    return empty;
+  }
+}
+
 function shareCount() {
-  const stored = Number(localStorage.getItem(sharesStorageKey));
-  if (Number.isFinite(stored) && stored > 0) return Math.min(stored, shareBonusMax);
-  return localStorage.getItem(legacyRepostStorageKey) === "on" ? 1 : 0;
+  const counts = shareCounts();
+  return counts.telegram + counts.instagram;
+}
+
+function sharePointsForCount(count) {
+  let points = 0;
+  for (let index = 0; index < count; index += 1) {
+    points += Math.round(shareBonusPoints * (shareBonusDecay ** index));
+  }
+  return points;
 }
 
 function sharePoints() {
-  return shareCount() * shareBonusPoints;
+  const counts = shareCounts();
+  return sharePointsForCount(counts.telegram) + sharePointsForCount(counts.instagram);
 }
 
 function shareBonusText() {
-  return shareCount() > 0
-    ? `РЕПОСТЫ: ${shareCount()} · БОНУС +${sharePoints()} ОЧКОВ`
-    : `КАЖДЫЙ РЕПОСТ = +${shareBonusPoints} ОЧКОВ`;
+  const counts = shareCounts();
+  const points = sharePoints();
+  return points > 0
+    ? `TG ${counts.telegram} · INSTA ${counts.instagram} · БОНУС +${points} ОЧКОВ`
+    : `1-Й РЕПОСТ TG/INSTA = +${shareBonusPoints}, ДАЛЬШЕ /2`;
 }
 
 function registerShare(source) {
-  const next = Math.min(shareCount() + 1, shareBonusMax);
-  localStorage.setItem(sharesStorageKey, String(next));
+  const shareSource = normalizeShareSource(source);
+  const counts = shareCounts();
+  counts[shareSource] = Math.min(counts[shareSource] + 1, shareBonusMaxPerSource);
+  localStorage.setItem(sharesStorageKey, JSON.stringify(counts));
   logEvent("share_bonus", {
-    share_source: source,
-    share_count: next,
-    share_points: next * shareBonusPoints,
+    share_source: shareSource,
+    share_count: shareCount(),
+    source_count: counts[shareSource],
+    telegram_share_count: counts.telegram,
+    instagram_share_count: counts.instagram,
+    share_points: sharePoints(),
   });
 }
 
@@ -705,6 +814,7 @@ function recordRatingResult(outcome) {
   };
   saveLocalBest(result);
   const aggregate = aggregateLocalRating();
+  const counts = shareCounts();
   logEvent("rating_result", {
     outcome,
     result_score: result.score,
@@ -713,6 +823,9 @@ function recordRatingResult(outcome) {
     total_rating: aggregate?.rating || 0,
     games_done: aggregate?.gamesDone || 0,
     share_count: shareCount(),
+    telegram_share_count: counts.telegram,
+    instagram_share_count: counts.instagram,
+    share_points: sharePoints(),
   });
 }
 
@@ -887,17 +1000,58 @@ function drawCenteredText(targetCtx, text, y, size, color = "#ffffff") {
   targetCtx.fillText(text, 540, y);
 }
 
+function drawStoryPixelX(targetCtx, x, y, cell, color = "#ffffff") {
+  targetCtx.fillStyle = color;
+  const pixels = [
+    [0, 0], [4, 0],
+    [1, 1], [3, 1],
+    [2, 2],
+    [1, 3], [3, 3],
+    [0, 4], [4, 4],
+  ];
+  pixels.forEach(([px, py]) => {
+    targetCtx.fillRect(x + px * cell, y + py * cell, cell, cell);
+  });
+}
+
+function drawStoryBlock(targetCtx, x, y, width, height, radius = 26, color = "#ffffff") {
+  targetCtx.fillStyle = color;
+  targetCtx.beginPath();
+  if (typeof targetCtx.roundRect === "function") {
+    targetCtx.roundRect(x, y, width, height, radius);
+  } else {
+    targetCtx.moveTo(x + radius, y);
+    targetCtx.lineTo(x + width - radius, y);
+    targetCtx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    targetCtx.lineTo(x + width, y + height - radius);
+    targetCtx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    targetCtx.lineTo(x + radius, y + height);
+    targetCtx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    targetCtx.lineTo(x, y + radius);
+    targetCtx.quadraticCurveTo(x, y, x + radius, y);
+  }
+  targetCtx.fill();
+}
+
 function shareImageBlob() {
   const rating = aggregateLocalRating();
   const currentRating = rating?.rating || 0;
   const ratingPlace = localRatingPlace();
   const ratingText = ratingPlace ? `МОЙ РЕЙТИНГ #${ratingPlace}` : "Я В ИГРЕ";
+  const prizeLine = isQualified() ? "Я УЧАСТВУЮ В РОЗЫГРЫШЕ" : "ИГРАЮ ЗА ПЛАЩ ИНЖЕНЕРА";
   const story = document.createElement("canvas");
   story.width = 1080;
   story.height = 1920;
   const storyCtx = story.getContext("2d");
   storyCtx.fillStyle = "#0025ff";
   storyCtx.fillRect(0, 0, story.width, story.height);
+
+  drawStoryPixelX(storyCtx, 770, 300, 28);
+  drawStoryPixelX(storyCtx, 126, 1616, 22);
+  drawStoryPixelX(storyCtx, 830, 1632, 18);
+  drawStoryBlock(storyCtx, 826, 690, 112, 260, 24);
+  drawStoryBlock(storyCtx, 138, 1168, 260, 88, 24);
+  drawStoryBlock(storyCtx, 702, 1228, 228, 80, 24);
 
   storyCtx.strokeStyle = "#ffffff";
   storyCtx.lineWidth = 8;
@@ -920,14 +1074,16 @@ function shareImageBlob() {
   drawCenteredText(storyCtx, `${currentRating} ОЧКОВ`, 1085, 62, "#0025ff");
 
   // Приз
-  drawCenteredText(storyCtx, "РОЗЫГРЫШ ПЛАЩА ИНЖЕНЕРА", 1340, 46);
+  drawCenteredText(storyCtx, prizeLine, 1340, 42);
+  drawCenteredText(storyCtx, "ПЛАЩА ИНЖЕНЕРА ZNWR", 1402, 42);
 
   // Подпись магазина (призыв отметить — в самом приложении, не на сторис)
   storyCtx.fillStyle = "#ffffff";
   storyCtx.fillRect(285, 1500, 510, 115);
   drawCenteredText(storyCtx, "@ZNWR.STORE", 1560, 54, "#0025ff");
 
-  drawCenteredText(storyCtx, "PLAY / SHARE / WIN", 1750, 32);
+  drawCenteredText(storyCtx, "СЫГРАЙ ЧЕРЕЗ БОТА И ПОПАДИ В РЕЙТИНГ", 1718, 30);
+  drawCenteredText(storyCtx, botShareUrl.replace(/^https?:\/\//, ""), 1774, 30);
 
   return new Promise((resolve, reject) => {
     story.toBlob((blob) => {
@@ -1861,31 +2017,6 @@ resize();
 resetGame();
 fetchLeaderboard();
 logEvent("app_open");
-if (urlParams.get("debugResult") === "1") {
-  localStorage.setItem(ratingStorageKey, JSON.stringify({
-    games: {
-      pac: {
-        name: localPlayerName(),
-        gameType: "pac",
-        game: gameModes.pac.label,
-        score: gameModes.pac.target,
-        seconds: 42,
-        outcome: "win",
-      },
-      invaders: {
-        name: localPlayerName(),
-        gameType: "invaders",
-        game: gameModes.invaders.label,
-        score: gameModes.invaders.target,
-        seconds: 34,
-        outcome: "win",
-      },
-    },
-  }));
-  updateResultPanel();
-  prizePanel.hidden = false;
-  setMode("prize");
-}
 updateSoundButton();
 maybeShowOnboarding();
 requestAnimationFrame(render);

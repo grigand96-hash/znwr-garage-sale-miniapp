@@ -135,59 +135,31 @@ button:disabled {
   max-height: 900px;
   transform: translateX(-50%);
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  padding: 14px 18px 104px;
-  border: 4px solid var(--white);
+  grid-template-rows: auto minmax(0, 1fr);
+  padding: 12px 14px 16px;
+  border: 3px solid var(--white);
   background: var(--blue);
   box-shadow:
-    8px 8px 0 rgba(255, 255, 255, 0.22),
-    inset 0 0 0 9px var(--blue),
-    inset 0 0 0 12px var(--white);
+    6px 6px 0 rgba(255, 255, 255, 0.18),
+    inset 0 0 0 7px var(--blue),
+    inset 0 0 0 9px var(--white);
 }
 
 .cabinet::before,
 .cabinet::after {
-  content: "";
-  position: absolute;
-  pointer-events: none;
-}
-
-.cabinet::before {
-  left: 8%;
-  right: 8%;
-  bottom: 32px;
-  height: 58px;
-  border: 4px solid var(--white);
-  background:
-    linear-gradient(var(--white), var(--white)) 13% 30% / 18% 15px no-repeat,
-    linear-gradient(var(--white), var(--white)) 45% 23% / 8% 28px no-repeat,
-    linear-gradient(var(--white), var(--white)) 66% 32% / 11% 17px no-repeat,
-    linear-gradient(var(--white), var(--white)) 82% 32% / 11% 17px no-repeat,
-    var(--blue);
-  box-shadow: 5px 5px 0 var(--shadow);
-  clip-path: polygon(4% 0, 96% 0, 100% 100%, 0 100%);
-}
-
-.cabinet::after {
-  left: 20%;
-  right: 20%;
-  bottom: 8px;
-  height: 16px;
-  border: 4px solid var(--white);
-  border-top: 0;
-  background: var(--blue);
+  content: none;
 }
 
 .cabinet-marquee {
   display: grid;
   place-items: center;
   align-content: center;
-  margin: 0 6px 12px;
-  border: 4px solid var(--white);
+  margin: 0 10px 12px;
+  border: 3px solid var(--white);
   background: var(--white);
   color: var(--blue);
   text-align: center;
-  box-shadow: 5px 5px 0 var(--shadow);
+  box-shadow: 4px 4px 0 var(--shadow);
 }
 
 .cabinet-marquee strong {
@@ -199,20 +171,95 @@ button:disabled {
 
 .cabinet-screen {
   position: relative;
-  margin: 0 12px;
+  margin: 0 10px;
   display: grid;
   justify-items: center;
   align-content: stretch;
   padding: 18px 16px;
-  border: 7px solid var(--white);
+  border: 4px solid var(--white);
   background: var(--blue);
   overflow-y: auto;
   overflow-x: hidden;
-  box-shadow: inset 0 0 0 4px var(--blue);
+  box-shadow: none;
+}
+
+.poster-motifs {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.pixel-x {
+  --s: 6px;
+  position: absolute;
+  width: calc(var(--s) * 5);
+  height: calc(var(--s) * 5);
+  opacity: 0.92;
+}
+
+.pixel-x::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--s);
+  height: var(--s);
+  background: var(--white);
+  box-shadow:
+    calc(var(--s) * 4) 0 0 var(--white),
+    calc(var(--s) * 1) calc(var(--s) * 1) 0 var(--white),
+    calc(var(--s) * 3) calc(var(--s) * 1) 0 var(--white),
+    calc(var(--s) * 2) calc(var(--s) * 2) 0 var(--white),
+    calc(var(--s) * 1) calc(var(--s) * 3) 0 var(--white),
+    calc(var(--s) * 3) calc(var(--s) * 3) 0 var(--white),
+    0 calc(var(--s) * 4) 0 var(--white),
+    calc(var(--s) * 4) calc(var(--s) * 4) 0 var(--white);
+}
+
+.pixel-x-a {
+  --s: 5px;
+  top: 16%;
+  right: 7%;
+}
+
+.pixel-x-b {
+  --s: 4px;
+  left: 8%;
+  top: 51%;
+}
+
+.pixel-x-c {
+  --s: 5px;
+  right: 12%;
+  bottom: 11%;
+}
+
+.poster-block {
+  position: absolute;
+  background: var(--white);
+  border-radius: 7px;
+  opacity: 0.98;
+}
+
+.poster-block-a {
+  width: 24px;
+  height: 82px;
+  right: -15px;
+  top: 32%;
+}
+
+.poster-block-b {
+  width: 82px;
+  height: 28px;
+  left: -28px;
+  bottom: 24%;
 }
 
 .scanline {
   position: absolute;
+  z-index: 1;
   inset: 0;
   opacity: 0.18;
   pointer-events: none;
@@ -281,7 +328,7 @@ button:disabled {
 
 .intro-panel {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   left: auto;
   bottom: auto;
   width: min(100%, 286px);
@@ -434,20 +481,22 @@ h2 {
 
 .sound-toggle {
   position: absolute;
-  z-index: 5;
-  top: max(28px, env(safe-area-inset-top));
-  right: 8%;
-  display: none;
-  min-height: 36px;
-  padding: 6px 10px;
+  z-index: 9;
+  top: max(64px, calc(env(safe-area-inset-top) + 52px));
+  right: calc(8% + 70px);
+  display: inline-grid;
+  place-items: center;
+  min-width: 78px;
+  min-height: 30px;
+  padding: 5px 8px;
   border: 2px solid var(--white);
   background: transparent;
   color: var(--white);
   border-radius: 0;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 900;
   cursor: pointer;
-  box-shadow: 4px 4px 0 var(--shadow);
+  box-shadow: 3px 3px 0 var(--shadow);
 }
 
 .game-tools {
@@ -557,6 +606,13 @@ h2 {
   image-rendering: pixelated;
 }
 
+.onboarding-prize-image svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 210px;
+}
+
 .onboarding-copy p {
   margin: 0;
   padding: 8px 10px;
@@ -565,6 +621,13 @@ h2 {
   font-size: 13px;
   line-height: 1.2;
   font-weight: 900;
+}
+
+.onboarding-link {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 10px;
+  font-size: 12px;
 }
 
 .onboarding-dots {
@@ -763,9 +826,6 @@ h2 {
   pointer-events: none;
 }
 
-[data-state="playing"] .sound-toggle,
-[data-state="prize"] .sound-toggle,
-[data-state="gameover"] .sound-toggle,
 [data-state="prize"] .game-tools,
 [data-state="gameover"] .game-tools {
   display: none;

@@ -19,6 +19,12 @@ const HEADERS = [
   "game_rating",
   "total_rating",
   "games_done",
+  "share_source",
+  "share_count",
+  "source_count",
+  "telegram_share_count",
+  "instagram_share_count",
+  "share_points",
   "chance_multiplier",
   "mode",
   "sound_enabled",
@@ -46,14 +52,24 @@ const RATING_HEADERS = [
   "chance_multiplier",
   "updated_at",
   "share_count",
+  "telegram_share_count",
+  "instagram_share_count",
+  "share_points",
 ];
 const GAME_TYPES = ["pac", "invaders", "breakout"];
 const SHARE_BONUS_POINTS = 150;
-const SHARE_BONUS_MAX = 20;
+const SHARE_BONUS_DECAY = 0.5;
+const SHARE_BONUS_MAX_PER_SOURCE = 6;
+const MAX_SCORE_MULTIPLIER = 12;
 const GAME_LABELS = {
   pac: "PAC SALE",
   invaders: "CODE INVADERS",
   breakout: "PROMO BREAKOUT",
+};
+const GAME_SETTINGS = {
+  pac: { target: 24, coefficient: 1 },
+  invaders: { target: 10, coefficient: 1.12 },
+  breakout: { target: 18, coefficient: 1.06 },
 };
 
 function doPost(e) {
@@ -88,6 +104,12 @@ function doPost(e) {
       payload.game_rating || "",
       payload.total_rating || "",
       payload.games_done || "",
+      payload.share_source || "",
+      payload.share_count || "",
+      payload.source_count || "",
+      payload.telegram_share_count || "",
+      payload.instagram_share_count || "",
+      payload.share_points || "",
       payload.chance_multiplier || "",
       payload.mode || "",
       payload.sound_enabled === true,
@@ -141,7 +163,12 @@ function handleRatingGet_(spreadsheetId, e) {
 
 function handleRatingEvent_(spreadsheetId, payload, verified, tokenConfigured) {
   const event = payload.event || "";
-  if (event !== "rating_result" && event !== "share_bonus" && event !== "instagram_share_intent") return;
+  if (
+    event !== "rating_result"
+    && event !== "share_bonus"
+    && event !== "telegram_share_confirmed"
+    && event !== "instagram_story_mention"
+  ) return;
   // With BOT_TOKEN configured, only Telegram-signed events may enter the public rating.
   if (tokenConfigured && !verified) return;
   const key = playerKey_(payload);
@@ -198,10 +225,13 @@ function emptyRatingRecord_(key) {
     },
     chance: 1,
     shareCount: 0,
+    telegramShareCount: 0,
+    instagramShareCount: 0,
   };
 }
 
 function ratingRecordFromRow_(row) {
+  const legacyShareCount = Number(row[16]) || 0;
   return {
     key: String(row[0] || ""),
     name: String(row[1] || "PLAYER"),
@@ -213,7 +243,9 @@ function ratingRecordFromRow_(row) {
       breakout: { rating: Number(row[8]) || 0, seconds: Number(row[9]) || 0 },
     },
     chance: Number(row[14]) || 1,
-    shareCount: Number(row[16]) || 0,
+    shareCount: legacyShareCount,
+    telegramShareCount: Number(row[17]) || 0,
+    instagramShareCount: Number(row[18]) || legacyShareCount,
   };
 }
 
@@ -222,13 +254,17 @@ function applyPayloadToRecord_(record, payload) {
   record.userId = String(payload.telegram_user_id || record.userId || "");
   record.username = String(payload.telegram_username || record.username || "");
   record.chance = Math.max(record.chance, Number(payload.chance_multiplier) || 1);
-  record.shareCount = Math.max(record.shareCount, Math.min(Number(payload.share_count) || 0, SHARE_BONUS_MAX));
+  if (payload.event === "share_bonus" || payload.event === "telegram_share_confirmed" || payload.event === "instagram_story_mention") {
+    applyShareBonus_(record, payload);
+  }
 
   if (payload.event !== "rating_result") return;
   const gameType = String(payload.game_type || "");
   if (GAME_TYPES.indexOf(gameType) === -1) return;
-  const rating = Number(payload.game_rating) || 0;
-  const seconds = Number(payload.result_seconds) || 0;
+  const seconds = Math.floor(Number(payload.result_seconds) || 0);
+  if (seconds < 5 || seconds > 1800) return;
+  const rating = calculateServerGameRating_(payload.result_score, gameType);
+  if (rating <= 0) return;
   const best = record.games[gameType];
   const isBetter = rating > best.rating || (rating === best.rating && rating > 0 && seconds < best.seconds);
   if (isBetter) {
@@ -236,11 +272,53 @@ function applyPayloadToRecord_(record, payload) {
   }
 }
 
+function applyShareBonus_(record, payload) {
+  const source = String(
+    payload.share_source
+      || (payload.event === "telegram_share_confirmed" ? "telegram" : "")
+      || (payload.event === "instagram_story_mention" ? "instagram" : "")
+  );
+  if (source === "telegram") {
+    record.telegramShareCount = Math.min((Number(record.telegramShareCount) || 0) + 1, SHARE_BONUS_MAX_PER_SOURCE);
+  } else if (source === "instagram") {
+    record.instagramShareCount = Math.min((Number(record.instagramShareCount) || 0) + 1, SHARE_BONUS_MAX_PER_SOURCE);
+  }
+  record.shareCount = record.telegramShareCount + record.instagramShareCount;
+}
+
+function sharePointsForCount_(count) {
+  let points = 0;
+  const cappedCount = Math.min(Math.max(Number(count) || 0, 0), SHARE_BONUS_MAX_PER_SOURCE);
+  for (let index = 0; index < cappedCount; index += 1) {
+    points += Math.round(SHARE_BONUS_POINTS * Math.pow(SHARE_BONUS_DECAY, index));
+  }
+  return points;
+}
+
+function sharePointsFromRecord_(record) {
+  return sharePointsForCount_(record.telegramShareCount) + sharePointsForCount_(record.instagramShareCount);
+}
+
+function calculateServerGameRating_(rawScore, gameType) {
+  const settings = GAME_SETTINGS[gameType];
+  if (!settings) return 0;
+  const score = Math.floor(Number(rawScore) || 0);
+  if (score < settings.target) return 0;
+  const cappedScore = Math.min(score, settings.target * MAX_SCORE_MULTIPLIER);
+  const fullLevels = Math.floor(cappedScore / settings.target);
+  const partial = (cappedScore - fullLevels * settings.target) / settings.target;
+  let weight = 0;
+  for (let k = 1; k <= fullLevels; k += 1) weight += 1 / k;
+  weight += partial / (fullLevels + 1);
+  return Math.round(weight * 1000 * settings.coefficient);
+}
+
 function ratingRowFromRecord_(record) {
   const playedGames = GAME_TYPES.filter((type) => record.games[type].rating > 0);
   // Share bonus counts only after at least one game is played (raffle rule).
+  const sharePoints = sharePointsFromRecord_(record);
   const totalRating = playedGames.length
-    ? playedGames.reduce((sum, type) => sum + record.games[type].rating, 0) + record.shareCount * SHARE_BONUS_POINTS
+    ? playedGames.reduce((sum, type) => sum + record.games[type].rating, 0) + sharePoints
     : 0;
   const totalSeconds = playedGames.reduce((sum, type) => sum + record.games[type].seconds, 0);
   const bestType = playedGames
@@ -264,6 +342,9 @@ function ratingRowFromRecord_(record) {
     record.chance,
     new Date(),
     record.shareCount,
+    record.telegramShareCount,
+    record.instagramShareCount,
+    sharePoints,
   ];
 }
 
