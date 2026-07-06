@@ -95,8 +95,27 @@ const shareBonusMaxPerSource = 6;
 const analyticsEndpoint = "https://script.google.com/macros/s/AKfycbyyVhu_3TZ0X9NdyFIE0B2EJiCAlF18Eglhc5w2wOOQLJQ8hELMUHsmyDUCNRUYUMr2Dg/exec";
 const urlParams = new URLSearchParams(window.location.search);
 const trafficSource = urlParams.get("src") || urlParams.get("utm_source") || "";
-const botShareUrl = urlParams.get("botLink") || "https://t.me/znwrrr_bot";
-const salePostUrl = urlParams.get("postLink") || "https://t.me/znwr_home/6153";
+
+// botLink/postLink приходят из URL и открываются кнопками/шарингом. Без проверки
+// это open-redirect: злоумышленник шлёт ?postLink=https://phish.site под видом
+// официальной игры ZNWR, а жертва ещё и репостит фишинг друзьям. Пускаем только
+// https на t.me и znwr.ru, иначе — дефолт.
+function safeUrlParam(name, fallback) {
+  const raw = urlParams.get(name);
+  if (!raw) return fallback;
+  try {
+    const parsed = new URL(raw, window.location.href);
+    const host = parsed.hostname.toLowerCase();
+    const allowed = parsed.protocol === "https:"
+      && (host === "t.me" || host === "znwr.ru" || host.endsWith(".znwr.ru"));
+    return allowed ? parsed.href : fallback;
+  } catch (error) {
+    return fallback;
+  }
+}
+
+const botShareUrl = safeUrlParam("botLink", "https://t.me/znwrrr_bot");
+const salePostUrl = safeUrlParam("postLink", "https://t.me/znwr_home/6153");
 const znwrSiteUrl = "https://znwr.ru/?utm_source=tg_game";
 const cloakProductUrl = "https://znwr.ru/product/2042-31-560/plash-inzenera/?utm_source=tg_game";
 const sessionId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -107,13 +126,14 @@ const gameModes = {
   breakout: { label: "PROMO BREAKOUT", target: 18, coefficient: 1.06, parSeconds: 50 },
 };
 
-const demoLeaders = [
-  { name: "@pixel_minsk", rating: 3285, gamesDone: 3, bestGame: "PAC SALE", totalSeconds: 132 },
-  { name: "@nemiga1986", rating: 3018, gamesDone: 3, bestGame: "CODE INVADERS", totalSeconds: 148 },
-  { name: "@breadboss", rating: 2760, gamesDone: 2, bestGame: "PROMO BREAKOUT", totalSeconds: 94 },
-  { name: "@znwr_runner", rating: 2310, gamesDone: 2, bestGame: "PAC SALE", totalSeconds: 104 },
-  { name: "@archive_kid", rating: 1745, gamesDone: 1, bestGame: "CODE INVADERS", totalSeconds: 57 },
-];
+// Cap на очки за игру — держим синхронно с сервером (calculateServerGameRating_),
+// иначе локальное место игрока расходится с тем, что реально запишется в рейтинг.
+const maxScoreMultiplier = 12;
+
+// Хеш собственного ключа под маскированный публичный лидерборд (сервер отдаёт
+// h:<hex> вместо сырого tg:id). Считаем тем же способом, чтобы узнавать свою
+// строку в рейтинге и не дублировать её. Заполняется асинхронно при старте.
+let selfKeyHash = null;
 
 let serverLeaders = null;
 let serverLeadersLoadedAt = 0;
@@ -135,10 +155,10 @@ const onboardingScreens = [
     title: "КАК УЧАСТВОВАТЬ",
     lines: [
       "РЕЙТИНГ = ЛУЧШИЕ РЕЗУЛЬТАТЫ В 3 ИГРАХ",
+      "ИГРАЙ ЧЕРЕЗ TELEGRAM, ЧТОБЫ УЧАСТВОВАТЬ",
       "ПРОЙДИ БАЗОВЫЙ УРОВЕНЬ — ТЫ В РОЗЫГРЫШЕ",
-      "ПОСЛЕ БАЗЫ МОЖНО ИГРАТЬ ДАЛЬШЕ",
       "НОВЫЕ УРОВНИ ДОБАВЛЯЮТ ОЧКИ В РЕЙТИНГ",
-      "ОЧКИ = БИЛЕТЫ: ЧЕМ БОЛЬШЕ, ТЕМ ВЫШЕ ШАНС",
+      "БОЛЬШЕ ОЧКОВ — ВЫШЕ ШАНС (РАСТЁТ ПО КОРНЮ)",
       "ПРИЗ: ПЛАЩ ИНЖЕНЕРА ZNWR",
     ],
     links: [
@@ -152,6 +172,7 @@ const onboardingScreens = [
       "СДЕЛАЙ PNG ДЛЯ СТОРИС ИЛИ ПОДЕЛИСЬ В TG",
       `1-Й РЕПОСТ В TG И INSTA = +${shareBonusPoints} ОЧКОВ`,
       "КАЖДЫЙ СЛЕДУЮЩИЙ В ЭТОМ ЖЕ КАНАЛЕ = В 2 РАЗА МЕНЬШЕ",
+      `ДО ${shareBonusMaxPerSource} РЕПОСТОВ НА КАНАЛ (TG И INSTA ОТДЕЛЬНО)`,
       "В INSTAGRAM ОТМЕТЬ @ZNWR.STORE",
     ],
   },
@@ -701,6 +722,31 @@ function localPlayerKey() {
   return tgUser.id ? `tg:${tgUser.id}` : `anon:${sessionId}`;
 }
 
+// Тот же хеш, что сервер отдаёт публично: SHA-256("znwr-arcade:" + key), 6 байт.
+async function computeSelfKeyHash() {
+  try {
+    const raw = localPlayerKey();
+    const buffer = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(`znwr-arcade:${raw}`),
+    );
+    const bytes = [...new Uint8Array(buffer)].slice(0, 6);
+    selfKeyHash = `h:${bytes.map((b) => b.toString(16).padStart(2, "0")).join("")}`;
+  } catch (error) {
+    selfKeyHash = null;
+  }
+  return selfKeyHash;
+}
+
+function isTelegramPlayer() {
+  return Boolean(tg?.initDataUnsafe?.user?.id);
+}
+
+function updateAnonNotice() {
+  const notice = document.querySelector("#anonNotice");
+  if (notice) notice.hidden = isTelegramPlayer();
+}
+
 function getStoredRating() {
   try {
     const stored = JSON.parse(localStorage.getItem(ratingStorageKey) || "null");
@@ -859,14 +905,16 @@ function fetchLeaderboard(force = false) {
 }
 
 function combinedRatingRows() {
-  const localKey = localPlayerKey();
+  const localKey = selfKeyHash || localPlayerKey();
   const localRating = aggregateLocalRating();
   const boostedRating = localRating
     ? { ...localRating, key: localKey, isLocal: true }
     : null;
+  // До ответа сервера показываем только себя (если играл) — никаких выдуманных
+  // лидеров, чтобы во время розыгрыша игрок не принял фейков за реальный топ.
   const base = serverLeaders
     ? serverLeaders.filter((row) => row.key !== localKey)
-    : demoLeaders;
+    : [];
   const serverSelf = serverLeaders?.find((row) => row.key === localKey) || null;
   const rows = base.slice();
   if (boostedRating && serverSelf && serverSelf.rating > boostedRating.rating) {
@@ -900,8 +948,9 @@ function localRatingPlace() {
 function calculateGameRating(result) {
   const mode = gameModes[result.gameType] || gameModes.pac;
   const perLevel = mode.target;
-  const fullLevels = Math.floor(result.score / perLevel);
-  const partial = (result.score - fullLevels * perLevel) / perLevel;
+  const cappedScore = Math.min(result.score, perLevel * maxScoreMultiplier);
+  const fullLevels = Math.floor(cappedScore / perLevel);
+  const partial = (cappedScore - fullLevels * perLevel) / perLevel;
   let weight = 0;
   for (let k = 1; k <= fullLevels; k += 1) weight += 1 / k;
   weight += partial / (fullLevels + 1);
@@ -951,7 +1000,7 @@ function renderRating() {
   if (!rows.length) {
     const item = document.createElement("li");
     item.className = "rating-empty";
-    item.textContent = "ПОКА ПУСТО — СЫГРАЙ ПЕРВЫМ";
+    item.textContent = serverLeaders ? "ПОКА ПУСТО — СЫГРАЙ ПЕРВЫМ" : "ЗАГРУЖАЕМ РЕЙТИНГ…";
     ratingList.appendChild(item);
     return;
   }
@@ -2015,6 +2064,10 @@ window.addEventListener("resize", resize);
 
 resize();
 resetGame();
+computeSelfKeyHash().then(() => {
+  if (!ratingPanel.hidden) renderRating();
+});
+updateAnonNotice();
 fetchLeaderboard();
 logEvent("app_open");
 updateSoundButton();

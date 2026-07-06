@@ -1,1 +1,4 @@
 google-sheets-logger-deploy/
+# Снапшоты розыгрыша содержат реальные tg id/имена участников — не в git.
+tools/draw-results/
+.DS_Store

@@ -71,10 +71,53 @@ const GAME_SETTINGS = {
   invaders: { target: 10, coefficient: 1.12 },
   breakout: { target: 18, coefficient: 1.06 },
 };
+// Salt for the public player key hash — hides raw Telegram ids from the public
+// leaderboard while staying stable so the client can spot its own row.
+const PUBLIC_KEY_SALT = "znwr-arcade:";
+// Max writes per identity per minute before we drop the request (anti-spam).
+const RATE_LIMIT_PER_MINUTE = 60;
+
+function drawSecret_() {
+  try {
+    return PropertiesService.getScriptProperties().getProperty("DRAW_SECRET") || "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function publicKey_(rawKey) {
+  if (!rawKey) return "";
+  const bytes = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    PUBLIC_KEY_SALT + rawKey,
+    Utilities.Charset.UTF_8,
+  );
+  let hex = "";
+  for (let i = 0; i < 6; i += 1) {
+    const b = bytes[i] < 0 ? bytes[i] + 256 : bytes[i];
+    hex += b.toString(16).padStart(2, "0");
+  }
+  return `h:${hex}`;
+}
+
+function rateLimited_(payload) {
+  try {
+    const id = String(payload.session_id || payload.telegram_user_id || "");
+    if (!id) return false;
+    const cache = CacheService.getScriptCache();
+    const bucket = `rl:${id}`;
+    const count = Number(cache.get(bucket) || 0) + 1;
+    cache.put(bucket, String(count), 60);
+    return count > RATE_LIMIT_PER_MINUTE;
+  } catch (error) {
+    return false;
+  }
+}
 
 function doPost(e) {
   try {
     const payload = JSON.parse(e.postData.contents || "{}");
+    if (rateLimited_(payload)) return json_({ ok: false, error: "rate_limited" });
     const props = PropertiesService.getScriptProperties();
     const spreadsheetId = props.getProperty("SPREADSHEET_ID");
     const botToken = props.getProperty("BOT_TOKEN");
@@ -135,19 +178,22 @@ function doGet(e) {
     if (!spreadsheetId) {
       throw new Error("Missing SPREADSHEET_ID script property");
     }
+    const action = String(e?.parameter?.action || "rating");
+    if (action === "draw") return handleDrawGet_(spreadsheetId, e);
     return handleRatingGet_(spreadsheetId, e);
   } catch (error) {
     return json_({ ok: false, error: String(error) });
   }
 }
 
+// Public leaderboard: hashed keys (no raw tg ids), capped list.
 function handleRatingGet_(spreadsheetId, e) {
   const limit = Math.min(Math.max(Number(e?.parameter?.limit) || 10, 1), 200);
   const sheet = getRatingSheet_(spreadsheetId);
   const rows = sheet.getDataRange().getValues().slice(1);
   const players = rows
     .map((row) => ({
-      key: String(row[0] || ""),
+      key: publicKey_(String(row[0] || "")),
       name: String(row[1] || "PLAYER"),
       rating: Number(row[10]) || 0,
       gamesDone: Number(row[11]) || 0,
@@ -159,6 +205,33 @@ function handleRatingGet_(spreadsheetId, e) {
     .sort((a, b) => b.rating - a.rating || b.gamesDone - a.gamesDone || a.totalSeconds - b.totalSeconds)
     .slice(0, limit);
   return json_({ ok: true, players });
+}
+
+// Private draw endpoint: the FULL sheet with raw keys so the raffle can reach
+// the winner and no participant is silently truncated. Guarded by DRAW_SECRET
+// when set; while empty it stays open (and says so via `guarded`).
+function handleDrawGet_(spreadsheetId, e) {
+  const secret = drawSecret_();
+  const guarded = Boolean(secret);
+  if (guarded && String(e?.parameter?.secret || "") !== secret) {
+    return json_({ ok: false, error: "forbidden" });
+  }
+  const sheet = getRatingSheet_(spreadsheetId);
+  const rows = sheet.getDataRange().getValues().slice(1);
+  const players = rows
+    .map((row) => ({
+      key: String(row[0] || ""),
+      name: String(row[1] || "PLAYER"),
+      userId: String(row[2] || ""),
+      username: String(row[3] || ""),
+      rating: Number(row[10]) || 0,
+      gamesDone: Number(row[11]) || 0,
+      bestGame: String(row[12] || GAME_LABELS.pac),
+      totalSeconds: Number(row[13]) || 0,
+    }))
+    .filter((player) => player.key && player.rating > 0)
+    .sort((a, b) => b.rating - a.rating || b.gamesDone - a.gamesDone || a.totalSeconds - b.totalSeconds);
+  return json_({ ok: true, guarded, count: players.length, players });
 }
 
 function handleRatingEvent_(spreadsheetId, payload, verified, tokenConfigured) {
@@ -173,6 +246,11 @@ function handleRatingEvent_(spreadsheetId, payload, verified, tokenConfigured) {
   if (tokenConfigured && !verified) return;
   const key = playerKey_(payload);
   if (!key) return;
+  // Only Telegram players enter the rating sheet: anonymous players can't be
+  // reached for the prize and their anon:<session> key is regenerated on every
+  // page load, which is the main sheet-bloat vector. Anons still see their own
+  // standing locally on the client.
+  if (key.indexOf("tg:") !== 0) return;
 
   const lock = LockService.getScriptLock();
   lock.waitLock(5000);

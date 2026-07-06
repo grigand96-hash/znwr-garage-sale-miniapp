@@ -472,6 +472,19 @@ h2 {
   font-size: 13px;
 }
 
+.anon-notice {
+  width: 100%;
+  margin: 6px 0 0;
+  padding: 6px 8px;
+  border: 2px solid var(--white);
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.3;
+  letter-spacing: 0.04em;
+  text-align: center;
+  color: var(--white);
+}
+
 .actions {
   display: flex;
   gap: 12px;
