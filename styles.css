@@ -549,6 +549,11 @@ h2 {
   max-height: calc(var(--app-h) - 24px);
   overflow-y: auto;
   overflow-x: hidden;
+  /* Модалка должна перекрывать интро-хром (маркиза, HUD, SOUND ON — z-index 9),
+     иначе они торчат по краям. Поднимаем оверлей выше всего и затемняем фон
+     огромной тенью-подложкой, чтобы за окном ничего не «вылазило». */
+  z-index: 10;
+  box-shadow: 8px 8px 0 var(--shadow), 0 0 0 100vmax rgba(0, 10, 45, 0.72);
 }
 
 .prize-panel {
@@ -601,7 +606,6 @@ h2 {
 }
 
 .onboarding-panel {
-  z-index: 8;
   width: min(86%, 360px);
   gap: 16px;
 }
@@ -845,7 +849,9 @@ h2 {
 }
 
 [data-state="intro"] .rating-panel {
-  z-index: 7;
+  /* Держим выше .sound-toggle (z-index 9), иначе кнопка звука торчит поверх
+     рейтинга, открытого с интро-экрана (та же проблема, что у онбординга). */
+  z-index: 10;
 }
 
 @media (max-height: 700px) {
