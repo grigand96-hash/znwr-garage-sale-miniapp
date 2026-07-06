@@ -62,6 +62,7 @@ const onboardingCopy = document.querySelector("#onboardingCopy");
 const onboardingBackButton = document.querySelector("#onboardingBackButton");
 const onboardingNextButton = document.querySelector("#onboardingNextButton");
 const onboardingDots = [...document.querySelectorAll(".onboarding-dots span")];
+const introSoundButton = document.querySelector("#introSoundButton");
 const tgShareButton = document.querySelector("#tgShareButton");
 const prizeTgButton = document.querySelector("#prizeTgButton");
 const prizeSaleButton = document.querySelector("#prizeSaleButton");
@@ -474,6 +475,7 @@ function resetBreakoutGame() {
 function startGame(gameType = state.gameType) {
   selectGame(gameType);
   state.infoOpen = false;
+  delete app.dataset.overlay;
   salePanel.hidden = true;
   ratingPanel.hidden = true;
   prizePanel.hidden = true;
@@ -489,6 +491,7 @@ function startGame(gameType = state.gameType) {
 
 function returnToMenu() {
   state.infoOpen = false;
+  delete app.dataset.overlay;
   salePanel.hidden = true;
   ratingPanel.hidden = true;
   prizePanel.hidden = true;
@@ -538,14 +541,17 @@ function openSaleChannel() {
 
 function openRules() {
   state.infoOpen = state.mode === "playing";
+  app.dataset.overlay = "fullscreen";
   rulesPanel.hidden = false;
   onboardingPanel.hidden = true;
+  if (state.soundEnabled) startMusic();
   logEvent("rules_open");
   tg?.HapticFeedback?.impactOccurred("light");
 }
 
 function closeRules() {
   state.infoOpen = false;
+  delete app.dataset.overlay;
   rulesPanel.hidden = true;
   tg?.HapticFeedback?.impactOccurred("light");
 }
@@ -625,17 +631,20 @@ function renderOnboarding() {
 function openOnboarding({ forced = false } = {}) {
   state.onboardingStep = 0;
   state.infoOpen = state.mode === "playing";
+  app.dataset.overlay = "fullscreen";
   salePanel.hidden = true;
   ratingPanel.hidden = true;
   rulesPanel.hidden = true;
   onboardingPanel.hidden = false;
   renderOnboarding();
+  if (state.soundEnabled) startMusic();
   logEvent(forced ? "onboarding_reopen" : "onboarding_open");
   tg?.HapticFeedback?.impactOccurred("light");
 }
 
 function closeOnboarding() {
   localStorage.setItem(onboardingStorageKey, "done");
+  delete app.dataset.overlay;
   onboardingPanel.hidden = true;
   state.infoOpen = false;
   logEvent("onboarding_done", { onboarding_step: state.onboardingStep + 1 });
@@ -1376,8 +1385,13 @@ function softenMusic() {
 }
 
 function updateSoundButton() {
-  soundButton.textContent = state.soundEnabled ? "SOUND ON" : "SOUND OFF";
-  soundButton.setAttribute("aria-label", state.soundEnabled ? "Выключить звук" : "Включить звук");
+  const label = state.soundEnabled ? "SOUND ON" : "SOUND OFF";
+  const aria = state.soundEnabled ? "Выключить звук" : "Включить звук";
+  [soundButton, introSoundButton].forEach((button) => {
+    if (!button) return;
+    button.textContent = label;
+    button.setAttribute("aria-label", aria);
+  });
 }
 
 function toggleSound() {
@@ -1562,10 +1576,10 @@ function updatePacGame(delta, time) {
 
 function gameArea() {
   const width = Math.min(state.width * 0.86, 380);
-  const height = Math.min(state.height * 0.58, 460);
+  const height = Math.min(state.height * 0.52, 420);
   return {
     x: Math.round((state.width - width) / 2),
-    y: Math.round(state.height * 0.2),
+    y: Math.round(state.height * 0.19),
     w: Math.round(width),
     h: Math.round(height),
   };
@@ -1987,6 +2001,7 @@ onTap(otherGamesButton, returnToMenu);
 onTap(restartButton, () => startGame());
 onTap(gameoverMenuButton, returnToMenu);
 onTap(soundButton, toggleSound);
+onTap(introSoundButton, toggleSound);
 onTap(menuButton, returnToMenu);
 onTap(saleButton, openSaleInfo);
 onTap(ratingButton, openRating);
