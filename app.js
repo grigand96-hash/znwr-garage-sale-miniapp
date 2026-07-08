@@ -56,6 +56,9 @@ const rulesPanel = document.querySelector("#rulesPanel");
 const rulesIntroButton = document.querySelector("#rulesIntroButton");
 const rulesButton = document.querySelector("#rulesButton");
 const rulesCloseButton = document.querySelector("#rulesCloseButton");
+const instaSharePanel = document.querySelector("#instaSharePanel");
+const instaShareConfirmButton = document.querySelector("#instaShareConfirmButton");
+const instaShareCancelButton = document.querySelector("#instaShareCancelButton");
 const onboardingPanel = document.querySelector("#onboardingPanel");
 const onboardingKicker = document.querySelector("#onboardingKicker");
 const onboardingTitle = document.querySelector("#onboardingTitle");
@@ -178,7 +181,7 @@ const onboardingScreens = [
       `1-Й РЕПОСТ В TG И INSTA = +${shareBonusPoints} ОЧКОВ`,
       "КАЖДЫЙ СЛЕДУЮЩИЙ В ЭТОМ ЖЕ КАНАЛЕ = В 2 РАЗА МЕНЬШЕ",
       `ДО ${shareBonusMaxPerSource} РЕПОСТОВ НА КАНАЛ (TG И INSTA ОТДЕЛЬНО)`,
-      "В INSTAGRAM ОТМЕТЬ @ZNWR.STORE",
+      "В СТОРИС ПОСТАВЬ ОТМЕТКУ @ZNWR.STORE В ПУСТОЕ БЕЛОЕ ПОЛЕ",
     ],
   },
   {
@@ -499,6 +502,7 @@ function startGame(gameType = state.gameType) {
   prizePanel.hidden = true;
   gameoverPanel.hidden = true;
   onboardingPanel.hidden = true;
+  instaSharePanel.hidden = true;
   resetGame();
   setMode("playing");
   resize();
@@ -516,6 +520,7 @@ function returnToMenu() {
   gameoverPanel.hidden = true;
   rulesPanel.hidden = true;
   onboardingPanel.hidden = true;
+  instaSharePanel.hidden = true;
   setMode("intro");
   resetGame();
   startMusic();
@@ -1175,8 +1180,8 @@ function shareImageBlob() {
   drawCenteredText(storyCtx, "СКИДКИ 20-90%", 1300, 56);
   drawCenteredText(storyCtx, "ХЛЕБОЗАВОД · НЕМИГА", 1380, 36);
 
+  // Пустая белая плашка — сюда игрок ставит отметку @znwr.store в сторис.
   drawStoryBlock(storyCtx, 220, 1600, 640, 118, 0);
-  drawCenteredText(storyCtx, "@ZNWRRR_BOT", 1660, 58, "#0025ff");
   drawCenteredText(storyCtx, "GARAGE + SAMPLE SALE", 1790, 32);
 
   return new Promise((resolve, reject) => {
@@ -1185,6 +1190,29 @@ function shareImageBlob() {
       else reject(new Error("Story image could not be created"));
     }, "image/png");
   });
+}
+
+let instaReturnTo = null;
+
+// Перед репостом в инсту показываем, что отметка @znwr.store обязательна (её надо
+// поставить в пустое белое поле на картинке), и только по подтверждению шерим.
+function openInstaShare(from) {
+  instaReturnTo = from;
+  ratingPanel.hidden = true;
+  prizePanel.hidden = true;
+  salePanel.hidden = true;
+  onboardingPanel.hidden = true;
+  rulesPanel.hidden = true;
+  instaSharePanel.hidden = false;
+  logEvent("insta_share_prompt", { from });
+  tg?.HapticFeedback?.impactOccurred("light");
+}
+
+function closeInstaShare() {
+  instaSharePanel.hidden = true;
+  if (instaReturnTo === "prize") prizePanel.hidden = false;
+  else ratingPanel.hidden = false;
+  tg?.HapticFeedback?.impactOccurred("light");
 }
 
 async function shareToInstagram() {
@@ -1197,7 +1225,7 @@ async function shareToInstagram() {
     const file = new File([blob], "znwr-arcade-sale.png", { type: "image/png" });
     const shareData = {
       title: "ZNWR Arcade Sale",
-      text: "Отметь @znwr.store в сторис — розыгрыш плаща инженера на ZNWR Arcade Sale!",
+      text: "Поставь отметку @znwr.store в пустое белое поле на картинке — без неё репост не засчитается. ZNWR Garage + Sample Sale, 10-12 июля.",
       files: [file],
     };
 
@@ -2054,8 +2082,15 @@ onTap(saleButton, openSaleInfo);
 onTap(ratingButton, openRating);
 onTap(ratingIntroButton, openRating);
 onTap(ratingCloseButton, closeRating);
-onTap(instagramShareButton, () => { shareToInstagram().catch(() => {}); });
-onTap(prizeShareButton, () => { shareToInstagram().catch(() => {}); });
+onTap(instagramShareButton, () => openInstaShare("rating"));
+onTap(prizeShareButton, () => openInstaShare("prize"));
+onTap(instaShareConfirmButton, () => {
+  instaSharePanel.hidden = true;
+  if (instaReturnTo === "prize") prizePanel.hidden = false;
+  else ratingPanel.hidden = false;
+  shareToInstagram().catch(() => {});
+});
+onTap(instaShareCancelButton, closeInstaShare);
 onTap(saleDetailsButton, openSaleDetails);
 onTap(saleChannelButton, openSaleChannel);
 onTap(saleCtaButton, openSaleChannel);
