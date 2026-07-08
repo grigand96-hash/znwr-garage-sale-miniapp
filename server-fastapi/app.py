@@ -389,27 +389,51 @@ async def ingest(request: Request):
 
 
 @app.get("/")
-def read(action: str = "rating", limit: int = 10, secret: str = "", rating: int = 0):
+def read(action: str = "rating", limit: int = 10, secret: str = "", rating: int = 0,
+         telegram_init_data: str = ""):
     if action == "draw":
         return _draw(secret)
     if action == "rank":
-        return _rank(rating)
+        return _rank(rating, telegram_init_data)
     return _leaderboard(limit)
 
 
-# True global rank for a given score, so a player outside the visible top-N
-# still sees their real place ("#4721 of 10000"). Indexed COUNT — ms at any size.
-def _rank(rating):
-    try:
-        rating = int(rating or 0)
-    except (TypeError, ValueError):
-        rating = 0
-    if rating <= 0:
-        return JSONResponse({"ok": True, "rank": None, "total": 0})
+# True global rank so a player outside the visible top-N still sees their real
+# place. Ranks by the ACCOUNT's stored rating when a valid Telegram signature is
+# present — so the place is identical on every device, not tied to the local
+# score of one browser. Falls back to the passed-in local rating for anons.
+def _rank(rating, init_data=""):
+    games_done = None
+    best_game = None
+    verified, _reason, user = verify_init_data(init_data, BOT_TOKEN)
+    if verified and user.get("id"):
+        with _connect() as conn:
+            row = conn.execute(
+                "SELECT total_rating, games_done, best_game FROM rating WHERE player_key = ?",
+                (f"tg:{user['id']}",),
+            ).fetchone()
+        if row:
+            eff = int(row["total_rating"] or 0)
+            games_done = row["games_done"]
+            best_game = row["best_game"]
+        else:
+            eff = 0
+    else:
+        try:
+            eff = int(rating or 0)
+        except (TypeError, ValueError):
+            eff = 0
     with _connect() as conn:
         total = conn.execute("SELECT COUNT(*) FROM rating WHERE total_rating > 0").fetchone()[0]
-        higher = conn.execute("SELECT COUNT(*) FROM rating WHERE total_rating > ?", (rating,)).fetchone()[0]
-    return JSONResponse({"ok": True, "rank": higher + 1, "total": total})
+        higher = conn.execute("SELECT COUNT(*) FROM rating WHERE total_rating > ?", (eff,)).fetchone()[0] if eff > 0 else 0
+    return JSONResponse({
+        "ok": True,
+        "rank": (higher + 1) if eff > 0 else None,
+        "total": total,
+        "rating": eff,
+        "gamesDone": games_done,
+        "bestGame": best_game,
+    })
 
 
 def _leaderboard(limit):

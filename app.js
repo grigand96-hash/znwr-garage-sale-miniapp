@@ -1015,22 +1015,55 @@ function fetchLeaderboard(force = false) {
 function fetchMyRank() {
   if (!analyticsEndpoint) return Promise.resolve(null);
   const aggregate = aggregateLocalRating();
-  if (!aggregate || !aggregate.rating) {
+  const initData = tg?.initData || "";
+  // С подписью сервер ранжирует рейтинг АККАУНТА (одинаково на всех устройствах),
+  // а не локальные очки этого браузера. Без подписи (аноним) — по локальным очкам.
+  if (!initData && (!aggregate || !aggregate.rating)) {
     myRankInfo = null;
     return Promise.resolve(null);
   }
-  return fetch(`${analyticsEndpoint}?action=rank&rating=${aggregate.rating}&ts=${Date.now()}`)
+  const query = new URLSearchParams({
+    action: "rank",
+    rating: String(aggregate?.rating || 0),
+    telegram_init_data: initData,
+    ts: String(Date.now()),
+  });
+  return fetch(`${analyticsEndpoint}?${query}`)
     .then((response) => response.json())
     .then((data) => {
-      if (data?.ok && data.rank) myRankInfo = { rank: data.rank, total: data.total || 0 };
+      myRankInfo = (data?.ok && data.rank)
+        ? {
+          rank: data.rank,
+          total: data.total || 0,
+          rating: Number(data.rating) || 0,
+          gamesDone: Number(data.gamesDone) || 0,
+          bestGame: data.bestGame || "",
+        }
+        : null;
       return myRankInfo;
     })
     .catch(() => myRankInfo);
 }
 
-// Лучшее известное место: истинный ранг с сервера, иначе локальная оценка.
+// Лучшее известное место: истинный ранг аккаунта с сервера, иначе локальная оценка.
 function bestKnownPlace() {
   return myRankInfo?.rank || localRatingPlace();
+}
+
+// Сводка «моего» результата с приоритетом серверного (аккаунтного), чтобы очки/
+// игры/место были одинаковыми на всех устройствах. Локальное — фолбэк и защита от
+// «отставания» сервера, если игрок только что улучшил результат на этом устройстве.
+function selfSummary() {
+  const local = aggregateLocalRating();
+  const rating = Math.max(local?.rating || 0, myRankInfo?.rating || 0);
+  if (rating <= 0) return null;
+  const useServer = myRankInfo?.rating && myRankInfo.rating >= (local?.rating || 0);
+  return {
+    rating,
+    gamesDone: useServer ? (myRankInfo.gamesDone || local?.gamesDone || 0) : (local?.gamesDone || 0),
+    bestGame: (useServer && myRankInfo.bestGame) ? myRankInfo.bestGame : (local?.bestGame || ""),
+    place: bestKnownPlace(),
+  };
 }
 
 function combinedRatingRows() {
@@ -1106,16 +1139,15 @@ function aggregateLocalRating() {
 }
 
 function updateResultPanel() {
-  const aggregate = aggregateLocalRating();
-  const place = bestKnownPlace();
-  if (!aggregate) {
+  const summary = selfSummary();
+  if (!summary) {
     resultPlaceNode.textContent = "РЕЙТИНГ";
     resultSummaryNode.textContent = "СЫГРАЙ, ЧТОБЫ ПОПАСТЬ В РЕЙТИНГ";
     resultBestGameNode.textContent = "";
   } else {
-    resultPlaceNode.textContent = place ? `#${place}` : "РЕЙТИНГ";
-    resultSummaryNode.textContent = `${aggregate.rating} ОЧКОВ · ${aggregate.gamesDone}/3 ИГР`;
-    resultBestGameNode.textContent = `ЛУЧШАЯ: ${aggregate.bestGame}`;
+    resultPlaceNode.textContent = summary.place ? `#${summary.place}` : "РЕЙТИНГ";
+    resultSummaryNode.textContent = `${summary.rating} ОЧКОВ · ${summary.gamesDone}/3 ИГР`;
+    resultBestGameNode.textContent = summary.bestGame ? `ЛУЧШАЯ: ${summary.bestGame}` : "";
   }
   resultChanceNode.textContent = shareStatusText();
   prizeShareButton.textContent = "УВЕЛИЧИТЬ ШАНСЫ (INSTA)";
@@ -1139,14 +1171,19 @@ function renderRating() {
 
   // Игрок вне видимого топ-30, но сыграл → «···» и его строка с истинным местом.
   const meInList = rows.some((row) => row.isLocal);
-  const localRating = aggregateLocalRating();
-  if (!meInList && localRating) {
+  const summary = selfSummary();
+  if (!meInList && summary) {
     const sep = document.createElement("li");
     sep.className = "rating-sep";
     sep.textContent = "· · ·";
     ratingList.appendChild(sep);
-    const place = myRankInfo?.rank ? `#${myRankInfo.rank}` : "#…";
-    ratingList.appendChild(makeRatingRow(place, { ...localRating, name: localPlayerName() }, true));
+    const place = summary.place ? `#${summary.place}` : "#…";
+    ratingList.appendChild(makeRatingRow(place, {
+      name: localPlayerName(),
+      rating: summary.rating,
+      gamesDone: summary.gamesDone,
+      bestGame: summary.bestGame || gameModes.pac.label,
+    }, true));
   }
 }
 
