@@ -705,8 +705,12 @@ function maybeShowOnboarding() {
 
 function shareToTelegram() {
   const place = bestKnownPlace();
-  const intro = place ? `Я #${place} в рейтинге ZNWR Arcade Sale! ` : "";
-  const text = `${intro}ZNWR Garage + Sample Sale: 10-12 июля, Хлебозавод, Немига. Скидки от 20% до 90%. Сыграй в аркаду, попади в рейтинг и получи шанс выиграть Плащ Инженера: @znwrrr_bot`;
+  const intro = place ? `Я #${place} в рейтинге ZNWR Arcade Sale!\n\n` : "";
+  const text = `${intro}GARAGE + SAMPLE SALE\n`
+    + `10-12 июля · Хлебозавод, Немига\n`
+    + `Скидки от 20% до 90%\n\n`
+    + `Сыграй в аркаду, попади в рейтинг и получи шанс выиграть Плащ Инженера ZNWR.\n\n`
+    + `Играть: @znwrrr_bot`;
   const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(botShareUrl)}&text=${encodeURIComponent(text)}`;
   registerShare("telegram");
   if (tg?.openTelegramLink) {
