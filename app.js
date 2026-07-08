@@ -140,6 +140,9 @@ let selfKeyHash = null;
 let serverLeaders = null;
 let serverLeadersLoadedAt = 0;
 let serverLeadersPromise = null;
+// Истинный глобальный ранг игрока ({rank, total}) — чтобы показать реальное
+// место, даже если игрок за пределами видимого топа. Заполняется fetchMyRank.
+let myRankInfo = null;
 
 const onboardingScreens = [
   {
@@ -696,7 +699,7 @@ function maybeShowOnboarding() {
 }
 
 function shareToTelegram() {
-  const place = localRatingPlace();
+  const place = bestKnownPlace();
   const intro = place ? `Я #${place} в рейтинге ZNWR Arcade Sale! ` : "";
   const text = `${intro}ZNWR Garage + Sample Sale: 10-12 июля, Хлебозавод, Немига. Скидки от 20% до 90%. Сыграй в аркаду, попади в рейтинг и получи шанс выиграть Плащ Инженера: @znwrrr_bot`;
   const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(botShareUrl)}&text=${encodeURIComponent(text)}`;
@@ -923,6 +926,29 @@ function fetchLeaderboard(force = false) {
   return serverLeadersPromise;
 }
 
+// Спрашиваем у сервера истинное место игрока по его очкам (COUNT рейтингов выше).
+// Нужно, когда игрок вне видимого топ-30 — иначе клиент знает лишь «31-й».
+function fetchMyRank() {
+  if (!analyticsEndpoint) return Promise.resolve(null);
+  const aggregate = aggregateLocalRating();
+  if (!aggregate || !aggregate.rating) {
+    myRankInfo = null;
+    return Promise.resolve(null);
+  }
+  return fetch(`${analyticsEndpoint}?action=rank&rating=${aggregate.rating}&ts=${Date.now()}`)
+    .then((response) => response.json())
+    .then((data) => {
+      if (data?.ok && data.rank) myRankInfo = { rank: data.rank, total: data.total || 0 };
+      return myRankInfo;
+    })
+    .catch(() => myRankInfo);
+}
+
+// Лучшее известное место: истинный ранг с сервера, иначе локальная оценка.
+function bestKnownPlace() {
+  return myRankInfo?.rank || localRatingPlace();
+}
+
 function combinedRatingRows() {
   const localKey = selfKeyHash || localPlayerKey();
   const localRating = aggregateLocalRating();
@@ -997,7 +1023,7 @@ function aggregateLocalRating() {
 
 function updateResultPanel() {
   const aggregate = aggregateLocalRating();
-  const place = localRatingPlace();
+  const place = bestKnownPlace();
   if (!aggregate) {
     resultPlaceNode.textContent = "РЕЙТИНГ";
     resultSummaryNode.textContent = "СЫГРАЙ, ЧТОБЫ ПОПАСТЬ В РЕЙТИНГ";
@@ -1024,22 +1050,38 @@ function renderRating() {
     return;
   }
   rows.forEach((row, index) => {
-    const item = document.createElement("li");
-    if (row.isLocal) item.classList.add("is-me");
-    const place = document.createElement("span");
-    const player = document.createElement("span");
-    const game = document.createElement("span");
-    const score = document.createElement("span");
-    place.textContent = `#${index + 1}`;
-    player.className = "player";
-    player.textContent = row.name;
-    game.className = "meta";
-    game.textContent = `${row.gamesDone}/3 · ${row.bestGame}`;
-    score.textContent = `${row.rating} ОЧКОВ`;
-    player.appendChild(game);
-    item.append(place, player, score);
-    ratingList.appendChild(item);
+    ratingList.appendChild(makeRatingRow(`#${index + 1}`, row, row.isLocal));
   });
+
+  // Игрок вне видимого топ-30, но сыграл → «···» и его строка с истинным местом.
+  const meInList = rows.some((row) => row.isLocal);
+  const localRating = aggregateLocalRating();
+  if (!meInList && localRating) {
+    const sep = document.createElement("li");
+    sep.className = "rating-sep";
+    sep.textContent = "· · ·";
+    ratingList.appendChild(sep);
+    const place = myRankInfo?.rank ? `#${myRankInfo.rank}` : "#…";
+    ratingList.appendChild(makeRatingRow(place, { ...localRating, name: localPlayerName() }, true));
+  }
+}
+
+function makeRatingRow(placeLabel, row, isMe) {
+  const item = document.createElement("li");
+  if (isMe) item.classList.add("is-me");
+  const place = document.createElement("span");
+  const player = document.createElement("span");
+  const game = document.createElement("span");
+  const score = document.createElement("span");
+  place.textContent = placeLabel;
+  player.className = "player";
+  player.textContent = row.name;
+  game.className = "meta";
+  game.textContent = `${row.gamesDone}/3 · ${row.bestGame}`;
+  score.textContent = `${row.rating} ОЧКОВ`;
+  player.appendChild(game);
+  item.append(place, player, score);
+  return item;
 }
 
 function openRating() {
@@ -1047,7 +1089,7 @@ function openRating() {
   salePanel.hidden = true;
   onboardingPanel.hidden = true;
   renderRating();
-  fetchLeaderboard(true).then(() => {
+  Promise.all([fetchLeaderboard(true), fetchMyRank()]).then(() => {
     if (!ratingPanel.hidden) renderRating();
   });
   ratingPanel.hidden = false;
@@ -1105,7 +1147,7 @@ function drawStoryBlock(targetCtx, x, y, width, height, radius = 26, color = "#f
 function shareImageBlob() {
   const rating = aggregateLocalRating();
   const currentRating = rating?.rating || 0;
-  const ratingPlace = localRatingPlace();
+  const ratingPlace = bestKnownPlace();
   const story = document.createElement("canvas");
   story.width = 1080;
   story.height = 1920;
@@ -1194,7 +1236,7 @@ function gameOver() {
   if (clearedBase) {
     recordRatingResult("game_over");
     updateResultPanel();
-    fetchLeaderboard(true).then(() => {
+    Promise.all([fetchLeaderboard(true), fetchMyRank()]).then(() => {
       if (!prizePanel.hidden) updateResultPanel();
     });
     gameoverPanel.hidden = true;

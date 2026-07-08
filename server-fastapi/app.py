@@ -384,10 +384,27 @@ async def ingest(request: Request):
 
 
 @app.get("/")
-def read(action: str = "rating", limit: int = 10, secret: str = ""):
+def read(action: str = "rating", limit: int = 10, secret: str = "", rating: int = 0):
     if action == "draw":
         return _draw(secret)
+    if action == "rank":
+        return _rank(rating)
     return _leaderboard(limit)
+
+
+# True global rank for a given score, so a player outside the visible top-N
+# still sees their real place ("#4721 of 10000"). Indexed COUNT — ms at any size.
+def _rank(rating):
+    try:
+        rating = int(rating or 0)
+    except (TypeError, ValueError):
+        rating = 0
+    if rating <= 0:
+        return JSONResponse({"ok": True, "rank": None, "total": 0})
+    with _connect() as conn:
+        total = conn.execute("SELECT COUNT(*) FROM rating WHERE total_rating > 0").fetchone()[0]
+        higher = conn.execute("SELECT COUNT(*) FROM rating WHERE total_rating > ?", (rating,)).fetchone()[0]
+    return JSONResponse({"ok": True, "rank": higher + 1, "total": total})
 
 
 def _leaderboard(limit):

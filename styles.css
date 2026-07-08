@@ -829,6 +829,16 @@ h2 {
   color: var(--blue);
 }
 
+/* Разделитель «···» между топ-30 и прикреплённой строкой игрока вне топа. */
+.rating-list li.rating-sep {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  border: 0;
+  padding: 2px 0;
+  letter-spacing: 6px;
+  opacity: 0.75;
+}
+
 .rating-list .player {
   overflow: hidden;
   text-overflow: ellipsis;
