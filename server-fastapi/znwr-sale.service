@@ -1,0 +1,22 @@
+[Unit]
+Description=ZNWR Arcade Sale backend (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/znwr-sale
+EnvironmentFile=/opt/znwr-sale/.env
+# 2 workers is plenty for this featherweight workload on 2 vCPU and keeps the
+# in-memory rate limiter accurate. Bound to localhost — nginx terminates TLS.
+ExecStart=/opt/znwr-sale/.venv/bin/uvicorn app:app --host 127.0.0.1 --port 5057 --workers 2
+Restart=on-failure
+RestartSec=3
+# Hard isolation from Leon & co on this shared box: the sale can never OOM the
+# machine or starve other services.
+MemoryMax=512M
+CPUQuota=150%
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
