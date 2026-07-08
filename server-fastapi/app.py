@@ -40,9 +40,10 @@ PUBLIC_KEY_SALT = "znwr-arcade:"
 RATE_LIMIT_PER_MINUTE = 60
 TELEGRAM_AUTH_MAX_AGE_SECONDS = 86400
 
-SHARE_BONUS_POINTS = 625
-SHARE_BONUS_DECAY = 0.5
-SHARE_BONUS_MAX_PER_SOURCE = 6
+SHARE_BONUS_POINTS = 625            # Instagram (stories) base for the 1st repost
+SHARE_BONUS_POINTS_TELEGRAM = 313   # TG worth half — stories matter more
+SHARE_BONUS_DECAY = 0.7             # each next repost ×0.7, unlimited, decays to ~0
+SHARE_BONUS_MAX_PER_SOURCE = 40     # safety bound only (geometric self-limits the total)
 # Not a gameplay cap — points grow forever with harmonic decay. This is only a
 # safety bound (unreachable by a human) so a fabricated giant score can't hang
 # the harmonic loop. Keep in sync with the client's maxScoreMultiplier.
@@ -187,9 +188,9 @@ def game_rating(raw_score, game_type: str) -> int:
     return round(weight * 1000 * coef)
 
 
-def share_points_for(count) -> int:
+def share_points_for(count, base=SHARE_BONUS_POINTS) -> int:
     capped = min(max(int(count or 0), 0), SHARE_BONUS_MAX_PER_SOURCE)
-    return sum(round(SHARE_BONUS_POINTS * (SHARE_BONUS_DECAY ** i)) for i in range(capped))
+    return sum(round(base * (SHARE_BONUS_DECAY ** i)) for i in range(capped))
 
 
 # ---------------------------------------------------------------------------
@@ -306,7 +307,8 @@ def apply_rating_event(payload):
 
 def _recompute_totals(rec):
     played = [gt for gt in GAME_TYPES if (rec.get(f"{gt}_rating") or 0) > 0]
-    share_points = share_points_for(rec.get("telegram_share_count")) + share_points_for(rec.get("instagram_share_count"))
+    share_points = (share_points_for(rec.get("telegram_share_count"), SHARE_BONUS_POINTS_TELEGRAM)
+                    + share_points_for(rec.get("instagram_share_count"), SHARE_BONUS_POINTS))
     total = (sum(rec[f"{gt}_rating"] for gt in played) + share_points) if played else 0
     rec["share_points"] = share_points
     rec["total_rating"] = total

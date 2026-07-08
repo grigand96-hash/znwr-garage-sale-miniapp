@@ -95,13 +95,17 @@ const legacyRepostStorageKey = "znwr-garage-sale-repost";
 const pendingInstaKey = "znwr-garage-sale-insta-pending";
 const qualifiedStorageKey = "znwr-garage-sale-qualified";
 const onboardingStorageKey = "znwr-garage-sale-onboarding-v1";
-const shareBonusPoints = 625;
+const shareBonusPoints = 625;             // база за 1-й репост в Instagram (сторис)
+const shareBonusPointsTelegram = 313;     // TG вдвое дешевле — сторис важнее
 // Инста-репост уходит «на проверку»: баллы начисляем не сразу, а через 5-10 мин —
 // чтобы было ощущение реальной модерации сторис (отметка @znwr.store обязательна).
 const instaVerifyMinMs = 5 * 60 * 1000;
 const instaVerifyMaxMs = 10 * 60 * 1000;
-const shareBonusDecay = 0.5;
-const shareBonusMaxPerSource = 6;
+// Каждый следующий репост даёт ×0.7 от предыдущего — без лимита, до супер-минимума
+// (округляется в 0 к ~20-му). Геометрия сходится → сумма ограничена (анти-фарм).
+// shareBonusMaxPerSource — не игровой лимит, а предохранитель от накрутки счётчика.
+const shareBonusDecay = 0.7;
+const shareBonusMaxPerSource = 40;
 const analyticsEndpoint = "https://sale.pad.team";
 const urlParams = new URLSearchParams(window.location.search);
 const trafficSource = urlParams.get("src") || urlParams.get("utm_source") || "";
@@ -185,9 +189,9 @@ const onboardingScreens = [
     title: "РЕПОСТ ДАЁТ БОНУС",
     lines: [
       "СДЕЛАЙ PNG ДЛЯ СТОРИС ИЛИ ПОДЕЛИСЬ В TG",
-      `1-Й РЕПОСТ В TG И INSTA = +${shareBonusPoints} ОЧКОВ`,
-      "КАЖДЫЙ СЛЕДУЮЩИЙ В ЭТОМ ЖЕ КАНАЛЕ = В 2 РАЗА МЕНЬШЕ",
-      `ДО ${shareBonusMaxPerSource} РЕПОСТОВ НА КАНАЛ (TG И INSTA ОТДЕЛЬНО)`,
+      `1-Й РЕПОСТ: INSTA-СТОРИС +${shareBonusPoints}, TG +${shareBonusPointsTelegram}`,
+      "КАЖДЫЙ СЛЕДУЮЩИЙ РЕПОСТ ЧУТЬ МЕНЬШЕ — БЕЗ ЛИМИТА",
+      "TG И INSTA СЧИТАЮТСЯ ОТДЕЛЬНО",
       "В СТОРИС ПОСТАВЬ ОТМЕТКУ @ZNWR.STORE В ПУСТОЕ БЕЛОЕ ПОЛЕ",
     ],
   },
@@ -831,17 +835,19 @@ function shareCount() {
   return counts.telegram + counts.instagram;
 }
 
-function sharePointsForCount(count) {
+function sharePointsForCount(count, base = shareBonusPoints) {
   let points = 0;
-  for (let index = 0; index < count; index += 1) {
-    points += Math.round(shareBonusPoints * (shareBonusDecay ** index));
+  const capped = Math.min(Math.max(count, 0), shareBonusMaxPerSource);
+  for (let index = 0; index < capped; index += 1) {
+    points += Math.round(base * (shareBonusDecay ** index));
   }
   return points;
 }
 
 function sharePoints() {
   const counts = shareCounts();
-  return sharePointsForCount(counts.telegram) + sharePointsForCount(counts.instagram);
+  return sharePointsForCount(counts.telegram, shareBonusPointsTelegram)
+    + sharePointsForCount(counts.instagram, shareBonusPoints);
 }
 
 function shareBonusText() {
@@ -849,7 +855,7 @@ function shareBonusText() {
   const points = sharePoints();
   return points > 0
     ? `TG ${counts.telegram} · INSTA ${counts.instagram} · БОНУС +${points} ОЧКОВ`
-    : `1-Й РЕПОСТ TG/INSTA = +${shareBonusPoints}, ДАЛЬШЕ /2`;
+    : `INSTA-СТОРИС +${shareBonusPoints} · TG +${shareBonusPointsTelegram} · ДАЛЬШЕ МЕНЬШЕ`;
 }
 
 function registerShare(source) {
