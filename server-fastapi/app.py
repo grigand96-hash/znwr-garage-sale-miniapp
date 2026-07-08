@@ -156,6 +156,16 @@ def public_key(raw_key: str) -> str:
     return "h:" + digest[:6].hex()
 
 
+def mask_name(name: str) -> str:
+    # Public leaderboard hides full identities: @grigand -> @gri***. The private
+    # draw endpoint keeps full names so the winner can actually be contacted.
+    name = (name or "PLAYER").strip()
+    if name.startswith("@"):
+        handle = name[1:]
+        return "@" + (handle[:3] if len(handle) > 3 else handle) + "***"
+    return (name[:3] if len(name) > 3 else name) + "***"
+
+
 def game_rating(raw_score, game_type: str) -> int:
     settings = GAME_SETTINGS.get(game_type)
     if not settings:
@@ -390,7 +400,7 @@ def _leaderboard(limit):
         ).fetchall()
     players = [{
         "key": public_key(r["player_key"]),
-        "name": r["name"] or "PLAYER",
+        "name": mask_name(r["name"]),
         "rating": r["total_rating"] or 0,
         "gamesDone": r["games_done"] or 0,
         "bestGame": r["best_game"] or GAME_LABELS["pac"],
