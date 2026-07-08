@@ -1171,8 +1171,9 @@ function shareImageBlob() {
   drawCenteredText(storyCtx, ratingPlace ? `#${ratingPlace}` : "START", 905, ratingPlace ? 132 : 104, "#0025ff");
   drawCenteredText(storyCtx, currentRating ? `${currentRating} ОЧКОВ` : "СЫГРАЙ И ПОПАДИ В РЕЙТИНГ", 1012, currentRating ? 42 : 30, "#0025ff");
 
-  drawCenteredText(storyCtx, "ПЛАЩ ИНЖЕНЕРА", 1265, 58);
-  drawCenteredText(storyCtx, "ZNWR", 1338, 42);
+  drawCenteredText(storyCtx, "10-12 ИЮЛЯ", 1215, 56);
+  drawCenteredText(storyCtx, "СКИДКИ 20-90%", 1300, 56);
+  drawCenteredText(storyCtx, "ХЛЕБОЗАВОД · НЕМИГА", 1380, 36);
 
   drawStoryBlock(storyCtx, 220, 1600, 640, 118, 0);
   drawCenteredText(storyCtx, "@ZNWRRR_BOT", 1660, 58, "#0025ff");
