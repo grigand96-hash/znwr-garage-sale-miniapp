@@ -94,7 +94,7 @@ const onboardingStorageKey = "znwr-garage-sale-onboarding-v1";
 const shareBonusPoints = 625;
 const shareBonusDecay = 0.5;
 const shareBonusMaxPerSource = 6;
-const analyticsEndpoint = "https://script.google.com/macros/s/AKfycbyyVhu_3TZ0X9NdyFIE0B2EJiCAlF18Eglhc5w2wOOQLJQ8hELMUHsmyDUCNRUYUMr2Dg/exec";
+const analyticsEndpoint = "https://sale.pad.team";
 const urlParams = new URLSearchParams(window.location.search);
 const trafficSource = urlParams.get("src") || urlParams.get("utm_source") || "";
 

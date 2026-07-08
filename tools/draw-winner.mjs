@@ -27,7 +27,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const ENDPOINT = "https://script.google.com/macros/s/AKfycbyyVhu_3TZ0X9NdyFIE0B2EJiCAlF18Eglhc5w2wOOQLJQ8hELMUHsmyDUCNRUYUMr2Dg/exec";
+const ENDPOINT = "https://sale.pad.team";
 
 const dryRun = process.argv.includes("--dry");
 const includeAnon = process.argv.includes("--include-anon");
