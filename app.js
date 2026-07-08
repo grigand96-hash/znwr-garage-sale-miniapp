@@ -92,9 +92,14 @@ const soundStorageKey = "znwr-garage-sale-sound";
 const ratingStorageKey = "znwr-garage-sale-rating";
 const sharesStorageKey = "znwr-garage-sale-shares";
 const legacyRepostStorageKey = "znwr-garage-sale-repost";
+const pendingInstaKey = "znwr-garage-sale-insta-pending";
 const qualifiedStorageKey = "znwr-garage-sale-qualified";
 const onboardingStorageKey = "znwr-garage-sale-onboarding-v1";
 const shareBonusPoints = 625;
+// Инста-репост уходит «на проверку»: баллы начисляем не сразу, а через 5-10 мин —
+// чтобы было ощущение реальной модерации сторис (отметка @znwr.store обязательна).
+const instaVerifyMinMs = 5 * 60 * 1000;
+const instaVerifyMaxMs = 10 * 60 * 1000;
 const shareBonusDecay = 0.5;
 const shareBonusMaxPerSource = 6;
 const analyticsEndpoint = "https://sale.pad.team";
@@ -860,8 +865,69 @@ function registerShare(source) {
   });
 }
 
+// --- Инста-репост «на проверке»: очередь отложенного начисления ---
+function getPendingInsta() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(pendingInstaKey) || "[]");
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+function setPendingInsta(arr) {
+  localStorage.setItem(pendingInstaKey, JSON.stringify(arr));
+}
+
+function pendingInstaCount() {
+  return getPendingInsta().length;
+}
+
+function queuePendingInstaShare() {
+  const delay = instaVerifyMinMs + Math.random() * (instaVerifyMaxMs - instaVerifyMinMs);
+  const arr = getPendingInsta();
+  arr.push({ creditAt: Date.now() + delay });
+  setPendingInsta(arr);
+  scheduleInstaProcessing();
+  logEvent("instagram_share_pending");
+}
+
+// Начисляем всё, чей срок «проверки» истёк (по таймеру или при заходе в приложение).
+function processPendingShares() {
+  const now = Date.now();
+  const arr = getPendingInsta();
+  const dueCount = arr.filter((item) => item.creditAt <= now).length;
+  if (!dueCount) return 0;
+  setPendingInsta(arr.filter((item) => item.creditAt > now));
+  for (let i = 0; i < dueCount; i += 1) registerShare("instagram");
+  updateShareUi();
+  updateResultPanel();
+  if (!ratingPanel.hidden) renderRating();
+  return dueCount;
+}
+
+let instaTimer = null;
+function scheduleInstaProcessing() {
+  const arr = getPendingInsta();
+  if (!arr.length) return;
+  const soonest = Math.min(...arr.map((item) => item.creditAt));
+  const wait = Math.max(0, soonest - Date.now());
+  if (instaTimer) window.clearTimeout(instaTimer);
+  instaTimer = window.setTimeout(() => {
+    processPendingShares();
+    scheduleInstaProcessing();
+  }, wait + 500);
+}
+
+// Текст статуса шэра: если инста «на проверке» — говорим об этом, иначе бонус.
+function shareStatusText() {
+  return pendingInstaCount() > 0
+    ? "ПРОВЕРЯЕМ INSTA-СТОРИС · БАЛЛЫ ЧЕРЕЗ 5-10 МИН"
+    : shareBonusText();
+}
+
 function updateShareUi() {
-  chanceText.textContent = shareBonusText();
+  chanceText.textContent = shareStatusText();
   instagramShareButton.textContent = "УВЕЛИЧИТЬ ШАНСЫ (INSTA)";
   instagramShareButton.disabled = false;
   prizeShareButton.textContent = "УВЕЛИЧИТЬ ШАНСЫ (INSTA)";
@@ -1042,7 +1108,7 @@ function updateResultPanel() {
     resultSummaryNode.textContent = `${aggregate.rating} ОЧКОВ · ${aggregate.gamesDone}/3 ИГР`;
     resultBestGameNode.textContent = `ЛУЧШАЯ: ${aggregate.bestGame}`;
   }
-  resultChanceNode.textContent = shareBonusText();
+  resultChanceNode.textContent = shareStatusText();
   prizeShareButton.textContent = "УВЕЛИЧИТЬ ШАНСЫ (INSTA)";
   prizeShareButton.disabled = false;
 }
@@ -1097,6 +1163,7 @@ function openRating() {
   state.infoOpen = state.mode === "playing";
   salePanel.hidden = true;
   onboardingPanel.hidden = true;
+  processPendingShares();
   renderRating();
   Promise.all([fetchLeaderboard(true), fetchMyRank()]).then(() => {
     if (!ratingPanel.hidden) renderRating();
@@ -1246,7 +1313,8 @@ async function shareToInstagram() {
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1200);
     }
 
-    registerShare("instagram");
+    // Не начисляем сразу — ставим «на проверку», баллы придут через 5-10 мин.
+    queuePendingInstaShare();
     updateShareUi();
     updateResultPanel();
     renderRating();
@@ -2173,4 +2241,7 @@ fetchLeaderboard();
 logEvent("app_open");
 updateSoundButton();
 maybeShowOnboarding();
+// Догоняем инста-шэры, чей срок «проверки» истёк, пока приложение было закрыто.
+processPendingShares();
+scheduleInstaProcessing();
 requestAnimationFrame(render);
