@@ -1243,26 +1243,34 @@ function shareImageBlob() {
   storyCtx.lineWidth = 8;
   storyCtx.strokeRect(70, 70, 940, 1780);
 
-  drawStoryPixelX(storyCtx, 840, 230, 18);
-  drawStoryPixelX(storyCtx, 150, 1510, 16);
+  // Декоративные X по диагонали — в углах, вне зоны контента.
+  drawStoryPixelX(storyCtx, 850, 150, 16);
+  drawStoryPixelX(storyCtx, 150, 1720, 16);
 
-  drawCenteredText(storyCtx, "ZNWR ARCADE", 240, 46);
-  drawCenteredText(storyCtx, "Я УЧАСТВУЮ", 445, 72);
-  drawCenteredText(storyCtx, "В РОЗЫГРЫШЕ", 535, 72);
+  // 1. Шапка
+  drawCenteredText(storyCtx, "ZNWR ARCADE", 230, 46);
 
-  drawStoryBlock(storyCtx, 170, 715, 740, 360, 0);
-  drawCenteredText(storyCtx, ratingPlace ? "МОЁ МЕСТО" : "Я В ИГРЕ", 800, 42, "#0025ff");
-  drawCenteredText(storyCtx, ratingPlace ? `#${ratingPlace}` : "START", 905, ratingPlace ? 132 : 104, "#0025ff");
-  drawCenteredText(storyCtx, currentRating ? `${currentRating} ОЧКОВ` : "СЫГРАЙ И ПОПАДИ В РЕЙТИНГ", 1012, currentRating ? 42 : 30, "#0025ff");
+  // 2. Хук
+  drawCenteredText(storyCtx, "Я УЧАСТВУЮ", 410, 70);
+  drawCenteredText(storyCtx, "В РОЗЫГРЫШЕ", 495, 70);
 
-  drawCenteredText(storyCtx, "ZNWR", 1150, 48);
-  drawCenteredText(storyCtx, "10-12 ИЮЛЯ", 1225, 56);
-  drawCenteredText(storyCtx, "СКИДКИ 20-90%", 1310, 56);
-  drawCenteredText(storyCtx, "ХЛЕБОЗАВОД · НЕМИГА", 1388, 36);
+  // 3. Карточка результата (контент центрирован в плашке 635–965)
+  drawStoryBlock(storyCtx, 170, 635, 740, 330, 0);
+  drawCenteredText(storyCtx, ratingPlace ? "МОЁ МЕСТО" : "Я В ИГРЕ", 715, 42, "#0025ff");
+  drawCenteredText(storyCtx, ratingPlace ? `#${ratingPlace}` : "START", 810, ratingPlace ? 128 : 100, "#0025ff");
+  drawCenteredText(storyCtx, currentRating ? `${currentRating} ОЧКОВ` : "СЫГРАЙ И ПОПАДИ В РЕЙТИНГ", 905, currentRating ? 42 : 28, "#0025ff");
 
-  // Пустая белая плашка — сюда игрок ставит отметку @znwr.store в сторис.
-  drawStoryBlock(storyCtx, 220, 1600, 640, 118, 0);
-  drawCenteredText(storyCtx, "GARAGE + SAMPLE SALE", 1790, 32);
+  // 4. Блок сейла
+  drawCenteredText(storyCtx, "ZNWR", 1110, 48);
+  drawCenteredText(storyCtx, "10-12 ИЮЛЯ", 1182, 56);
+  drawCenteredText(storyCtx, "СКИДКИ 20-90%", 1250, 56);
+  drawCenteredText(storyCtx, "ХЛЕБОЗАВОД · НЕМИГА", 1308, 36);
+
+  // 5. Пустая плашка — сюда игрок ставит отметку @znwr.store в сторис.
+  drawStoryBlock(storyCtx, 220, 1435, 640, 130, 0);
+
+  // 6. Подвал
+  drawCenteredText(storyCtx, "GARAGE + SAMPLE SALE", 1697, 32);
 
   return new Promise((resolve, reject) => {
     story.toBlob((blob) => {
