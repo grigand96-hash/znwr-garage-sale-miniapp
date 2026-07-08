@@ -43,7 +43,10 @@ TELEGRAM_AUTH_MAX_AGE_SECONDS = 86400
 SHARE_BONUS_POINTS = 625
 SHARE_BONUS_DECAY = 0.5
 SHARE_BONUS_MAX_PER_SOURCE = 6
-MAX_SCORE_MULTIPLIER = 12
+# Not a gameplay cap — points grow forever with harmonic decay. This is only a
+# safety bound (unreachable by a human) so a fabricated giant score can't hang
+# the harmonic loop. Keep in sync with the client's maxScoreMultiplier.
+MAX_SCORE_MULTIPLIER = 1000
 
 GAME_TYPES = ("pac", "invaders", "breakout")
 GAME_LABELS = {"pac": "PAC SALE", "invaders": "CODE INVADERS", "breakout": "PROMO BREAKOUT"}
