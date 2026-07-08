@@ -57,7 +57,7 @@ const RATING_HEADERS = [
   "share_points",
 ];
 const GAME_TYPES = ["pac", "invaders", "breakout"];
-const SHARE_BONUS_POINTS = 150;
+const SHARE_BONUS_POINTS = 625;
 const SHARE_BONUS_DECAY = 0.5;
 const SHARE_BONUS_MAX_PER_SOURCE = 6;
 const MAX_SCORE_MULTIPLIER = 12;
@@ -76,6 +76,7 @@ const GAME_SETTINGS = {
 const PUBLIC_KEY_SALT = "znwr-arcade:";
 // Max writes per identity per minute before we drop the request (anti-spam).
 const RATE_LIMIT_PER_MINUTE = 60;
+const TELEGRAM_AUTH_MAX_AGE_SECONDS = 86400;
 
 function drawSecret_() {
   try {
@@ -100,9 +101,9 @@ function publicKey_(rawKey) {
   return `h:${hex}`;
 }
 
-function rateLimited_(payload) {
+function rateLimited_(payload, identity) {
   try {
-    const id = String(payload.session_id || payload.telegram_user_id || "");
+    const id = String(identity || payload.session_id || "");
     if (!id) return false;
     const cache = CacheService.getScriptCache();
     const bucket = `rl:${id}`;
@@ -117,7 +118,6 @@ function rateLimited_(payload) {
 function doPost(e) {
   try {
     const payload = JSON.parse(e.postData.contents || "{}");
-    if (rateLimited_(payload)) return json_({ ok: false, error: "rate_limited" });
     const props = PropertiesService.getScriptProperties();
     const spreadsheetId = props.getProperty("SPREADSHEET_ID");
     const botToken = props.getProperty("BOT_TOKEN");
@@ -127,6 +127,14 @@ function doPost(e) {
     }
 
     const verification = verifyTelegramInitData(payload.telegram_init_data || "", botToken);
+    const signedUser = verification.user || {};
+    if (verification.ok) {
+      payload.telegram_user_id = signedUser.id || "";
+      payload.telegram_username = signedUser.username || "";
+      payload.telegram_first_name = signedUser.first_name || "";
+      payload.telegram_last_name = signedUser.last_name || "";
+    }
+    if (rateLimited_(payload, verification.ok ? `tg:${signedUser.id}` : "")) return json_({ ok: false, error: "rate_limited" });
     const sheet = getEventsSheet_(spreadsheetId);
     const row = [
       new Date(),
@@ -212,8 +220,8 @@ function handleRatingGet_(spreadsheetId, e) {
 // when set; while empty it stays open (and says so via `guarded`).
 function handleDrawGet_(spreadsheetId, e) {
   const secret = drawSecret_();
-  const guarded = Boolean(secret);
-  if (guarded && String(e?.parameter?.secret || "") !== secret) {
+  if (!secret) return json_({ ok: false, error: "draw_secret_not_configured" });
+  if (String(e?.parameter?.secret || "") !== secret) {
     return json_({ ok: false, error: "forbidden" });
   }
   const sheet = getRatingSheet_(spreadsheetId);
@@ -231,7 +239,7 @@ function handleDrawGet_(spreadsheetId, e) {
     }))
     .filter((player) => player.key && player.rating > 0)
     .sort((a, b) => b.rating - a.rating || b.gamesDone - a.gamesDone || a.totalSeconds - b.totalSeconds);
-  return json_({ ok: true, guarded, count: players.length, players });
+  return json_({ ok: true, guarded: true, count: players.length, players });
 }
 
 function handleRatingEvent_(spreadsheetId, payload, verified, tokenConfigured) {
@@ -471,22 +479,46 @@ function verifyTelegramInitData(initData, botToken) {
 
   const hash = params.hash;
   if (!hash) return { ok: false, reason: "no_hash" };
-  delete params.hash;
-
-  const dataCheckString = Object.keys(params)
-    .sort()
-    .map((key) => `${key}=${params[key]}`)
-    .join("\n");
 
   const secretKey = Utilities.computeHmacSha256Signature(botToken, "WebAppData");
-  const signature = Utilities.computeHmacSha256Signature(dataCheckString, secretKey);
-  const calculatedHash = signature
-    .map((byte) => (byte < 0 ? byte + 256 : byte).toString(16).padStart(2, "0"))
-    .join("");
+  const hashFor = (excluded) => {
+    const dataCheckString = Object.keys(params)
+      .filter((key) => excluded.indexOf(key) === -1)
+      .sort()
+      .map((key) => `${key}=${params[key]}`)
+      .join("\n");
+    return Utilities.computeHmacSha256Signature(dataCheckString, secretKey)
+      .map((byte) => (byte < 0 ? byte + 256 : byte).toString(16).padStart(2, "0"))
+      .join("");
+  };
+
+  // Telegram's HMAC always excludes `hash`. Newer clients also send `signature`
+  // (Ed25519, for token-less validation); conventions differ on whether it stays
+  // in the HMAC check string. Accept either — both still require a valid bot-token
+  // HMAC, so this can't forge a pass, only tolerate both field-set conventions.
+  let valid = hashFor(["hash"]) === hash;
+  if (!valid && params.signature) valid = hashFor(["hash", "signature"]) === hash;
+  if (!valid) return { ok: false, reason: "bad_hash" };
+
+  const authDate = Number(params.auth_date) || 0;
+  if (!authDate) return { ok: false, reason: "no_auth_date" };
+  const ageSeconds = Math.floor(Date.now() / 1000) - authDate;
+  if (ageSeconds < -60 || ageSeconds > TELEGRAM_AUTH_MAX_AGE_SECONDS) {
+    return { ok: false, reason: "expired_auth_date" };
+  }
+
+  let user = {};
+  try {
+    user = params.user ? JSON.parse(params.user) : {};
+  } catch (error) {
+    return { ok: false, reason: "bad_user" };
+  }
+  if (!user.id) return { ok: false, reason: "no_user" };
 
   return {
-    ok: calculatedHash === hash,
-    reason: calculatedHash === hash ? "ok" : "bad_hash",
+    ok: true,
+    reason: "ok",
+    user,
   };
 }
 

@@ -50,6 +50,7 @@ const salePanel = document.querySelector("#salePanel");
 const saleDetailsBlock = document.querySelector("#saleDetailsBlock");
 const saleDetailsButton = document.querySelector("#saleDetailsButton");
 const saleChannelButton = document.querySelector("#saleChannelButton");
+const saleCtaButton = document.querySelector("#saleCtaButton");
 const saleCloseButton = document.querySelector("#saleCloseButton");
 const rulesPanel = document.querySelector("#rulesPanel");
 const rulesIntroButton = document.querySelector("#rulesIntroButton");
@@ -90,7 +91,7 @@ const sharesStorageKey = "znwr-garage-sale-shares";
 const legacyRepostStorageKey = "znwr-garage-sale-repost";
 const qualifiedStorageKey = "znwr-garage-sale-qualified";
 const onboardingStorageKey = "znwr-garage-sale-onboarding-v1";
-const shareBonusPoints = 150;
+const shareBonusPoints = 625;
 const shareBonusDecay = 0.5;
 const shareBonusMaxPerSource = 6;
 const analyticsEndpoint = "https://script.google.com/macros/s/AKfycbyyVhu_3TZ0X9NdyFIE0B2EJiCAlF18Eglhc5w2wOOQLJQ8hELMUHsmyDUCNRUYUMr2Dg/exec";
@@ -158,7 +159,7 @@ const onboardingScreens = [
       "РЕЙТИНГ = ЛУЧШИЕ РЕЗУЛЬТАТЫ В 3 ИГРАХ",
       "ИГРАЙ ЧЕРЕЗ TELEGRAM, ЧТОБЫ УЧАСТВОВАТЬ",
       "ПРОЙДИ БАЗОВЫЙ УРОВЕНЬ — ТЫ В РОЗЫГРЫШЕ",
-      "НОВЫЕ УРОВНИ ДОБАВЛЯЮТ ОЧКИ В РЕЙТИНГ",
+      "НОВЫЕ УРОВНИ СЛОЖНЕЕ И ДОБАВЛЯЮТ ОЧКИ",
       "БОЛЬШЕ ОЧКОВ — ВЫШЕ ШАНС (РАСТЁТ ПО КОРНЮ)",
       "ПРИЗ: ПЛАЩ ИНЖЕНЕРА ZNWR",
     ],
@@ -342,6 +343,14 @@ function respawnLevelObjects() {
   if (state.gameType === "breakout") resetBreakoutGame();
 }
 
+function levelDifficulty() {
+  const step = Math.max(0, state.level - 1);
+  return {
+    step,
+    curve: Math.log2(step + 1),
+  };
+}
+
 // Общий для всех игр переход на следующий уровень: очки сохраняются, объекты
 // возрождаются сложнее (reset-функции читают state.level), показываем баннер.
 function levelUp() {
@@ -383,6 +392,7 @@ function markQualified() {
 }
 
 function resetPacGame() {
+  const difficulty = levelDifficulty();
   state.dots = new Set();
   maze.forEach((row, y) => {
     [...row].forEach((cell, x) => {
@@ -415,13 +425,14 @@ function resetPacGame() {
     dirX: enemy.dirX,
     dirY: enemy.dirY,
   }));
-  // Призраки плавно быстрее с каждым уровнем.
-  state.enemySpeed = 3.0 + (state.level - 1) * 0.3;
+  // Призраки продолжают ускоряться на дальних уровнях, но без резкого скачка.
+  state.enemySpeed = 3.0 + difficulty.step * 0.18 + difficulty.curve * 0.18;
   state.invaders = null;
   state.breakout = null;
 }
 
 function resetInvadersGame() {
+  const difficulty = levelDifficulty();
   const cols = 5;
   const rows = 2;
   const aliens = [];
@@ -440,10 +451,11 @@ function resetInvadersGame() {
     total: cols * rows,
     alienDir: 1,
     alienOffsetX: 0,
-    // Канон: с уровнями волна стартует ниже, база чуть быстрее, шаг вниз мелкий.
-    alienOffsetY: Math.min((state.level - 1) * 0.05, 0.22),
-    baseSpeed: 0.066 + (state.level - 1) * 0.008,
-    dropStep: 0.024,
+    // Канон: с уровнями волна стартует ниже и движется быстрее; скорость
+    // продолжает расти, а стартовая высота ограничена, чтобы игра оставалась игрой.
+    alienOffsetY: Math.min(difficulty.step * 0.04, 0.24),
+    baseSpeed: 0.066 + difficulty.step * 0.006 + difficulty.curve * 0.004,
+    dropStep: 0.024 + Math.min(difficulty.step * 0.0015, 0.018),
     fireCooldown: 0,
   };
   state.dots = new Set();
@@ -452,17 +464,20 @@ function resetInvadersGame() {
 }
 
 function resetBreakoutGame() {
+  const difficulty = levelDifficulty();
   const bricks = [];
   for (let y = 0; y < 3; y += 1) {
     for (let x = 0; x < 6; x += 1) {
       bricks.push({ x, y, alive: true });
     }
   }
-  // Мяч плавно быстрее с каждым уровнем.
-  const speed = 1 + (state.level - 1) * 0.08;
+  // Мяч быстрее, платформа уже: уровень бесконечно усложняется без смены
+  // количества кирпичей, поэтому scoring-формула остаётся прежней.
+  const speed = 1 + difficulty.step * 0.055 + difficulty.curve * 0.055;
   state.breakout = {
     paddleX: 0.5,
     paddleDir: 0,
+    paddleHalfWidth: Math.max(0.075, 0.12 - difficulty.step * 0.004),
     launched: false,
     ball: { x: 0.5, y: 0.76, vx: 0.28 * speed, vy: -0.42 * speed },
     bricks,
@@ -749,11 +764,6 @@ async function computeSelfKeyHash() {
 
 function isTelegramPlayer() {
   return Boolean(tg?.initDataUnsafe?.user?.id);
-}
-
-function updateAnonNotice() {
-  const notice = document.querySelector("#anonNotice");
-  if (notice) notice.hidden = isTelegramPlayer();
 }
 
 function getStoredRating() {
@@ -1095,8 +1105,6 @@ function shareImageBlob() {
   const rating = aggregateLocalRating();
   const currentRating = rating?.rating || 0;
   const ratingPlace = localRatingPlace();
-  const ratingText = ratingPlace ? `МОЙ РЕЙТИНГ #${ratingPlace}` : "Я В ИГРЕ";
-  const prizeLine = isQualified() ? "Я УЧАСТВУЮ В РОЗЫГРЫШЕ" : "ИГРАЮ ЗА ПЛАЩ ИНЖЕНЕРА";
   const story = document.createElement("canvas");
   story.width = 1080;
   story.height = 1920;
@@ -1104,44 +1112,28 @@ function shareImageBlob() {
   storyCtx.fillStyle = "#0025ff";
   storyCtx.fillRect(0, 0, story.width, story.height);
 
-  drawStoryPixelX(storyCtx, 770, 300, 28);
-  drawStoryPixelX(storyCtx, 126, 1616, 22);
-  drawStoryPixelX(storyCtx, 830, 1632, 18);
-  drawStoryBlock(storyCtx, 826, 690, 112, 260, 24);
-  drawStoryBlock(storyCtx, 138, 1168, 260, 88, 24);
-  drawStoryBlock(storyCtx, 702, 1228, 228, 80, 24);
-
   storyCtx.strokeStyle = "#ffffff";
   storyCtx.lineWidth = 8;
   storyCtx.strokeRect(70, 70, 940, 1780);
 
-  // Заголовок в белой плашке
-  storyCtx.fillStyle = "#ffffff";
-  storyCtx.fillRect(160, 190, 760, 128);
-  drawCenteredText(storyCtx, "ZNWR ARCADE SALE", 256, 52, "#0025ff");
+  drawStoryPixelX(storyCtx, 840, 230, 18);
+  drawStoryPixelX(storyCtx, 150, 1510, 16);
 
-  // Сейл
-  drawCenteredText(storyCtx, "GARAGE + SAMPLE SALE", 470, 46);
-  drawCenteredText(storyCtx, "10-12 ИЮЛЯ · ХЛЕБОЗАВОД, НЕМИГА", 548, 34);
-  drawCenteredText(storyCtx, "20-90%", 740, 190);
+  drawCenteredText(storyCtx, "ZNWR ARCADE", 240, 46);
+  drawCenteredText(storyCtx, "Я УЧАСТВУЮ", 445, 72);
+  drawCenteredText(storyCtx, "В РОЗЫГРЫШЕ", 535, 72);
 
-  // Карточка рейтинга
-  storyCtx.fillStyle = "#ffffff";
-  storyCtx.fillRect(190, 910, 700, 230);
-  drawCenteredText(storyCtx, ratingText, 995, 56, "#0025ff");
-  drawCenteredText(storyCtx, `${currentRating} ОЧКОВ`, 1085, 62, "#0025ff");
+  drawStoryBlock(storyCtx, 170, 715, 740, 360, 0);
+  drawCenteredText(storyCtx, ratingPlace ? "МОЁ МЕСТО" : "Я В ИГРЕ", 800, 42, "#0025ff");
+  drawCenteredText(storyCtx, ratingPlace ? `#${ratingPlace}` : "START", 905, ratingPlace ? 132 : 104, "#0025ff");
+  drawCenteredText(storyCtx, currentRating ? `${currentRating} ОЧКОВ` : "СЫГРАЙ И ПОПАДИ В РЕЙТИНГ", 1012, currentRating ? 42 : 30, "#0025ff");
 
-  // Приз
-  drawCenteredText(storyCtx, prizeLine, 1340, 42);
-  drawCenteredText(storyCtx, "ПЛАЩА ИНЖЕНЕРА ZNWR", 1402, 42);
+  drawCenteredText(storyCtx, "ПЛАЩ ИНЖЕНЕРА", 1265, 58);
+  drawCenteredText(storyCtx, "ZNWR", 1338, 42);
 
-  // Подпись магазина (призыв отметить — в самом приложении, не на сторис)
-  storyCtx.fillStyle = "#ffffff";
-  storyCtx.fillRect(285, 1500, 510, 115);
-  drawCenteredText(storyCtx, "@ZNWR.STORE", 1560, 54, "#0025ff");
-
-  drawCenteredText(storyCtx, "СЫГРАЙ ЧЕРЕЗ БОТА И ПОПАДИ В РЕЙТИНГ", 1718, 30);
-  drawCenteredText(storyCtx, botShareUrl.replace(/^https?:\/\//, ""), 1774, 30);
+  drawStoryBlock(storyCtx, 220, 1600, 640, 118, 0);
+  drawCenteredText(storyCtx, "@ZNWRRR_BOT", 1660, 58, "#0025ff");
+  drawCenteredText(storyCtx, "GARAGE + SAMPLE SALE", 1790, 32);
 
   return new Promise((resolve, reject) => {
     story.toBlob((blob) => {
@@ -1690,7 +1682,13 @@ function launchBreakoutBall() {
 function updateBreakoutGame(delta) {
   const breakout = state.breakout;
   if (!breakout) return;
-  breakout.paddleX = Math.max(0.14, Math.min(0.86, breakout.paddleX + breakout.paddleDir * delta * 0.78));
+  const paddleHalfWidth = breakout.paddleHalfWidth || 0.12;
+  const paddleMin = 0.04 + paddleHalfWidth;
+  const paddleMax = 0.96 - paddleHalfWidth;
+  breakout.paddleX = Math.max(
+    paddleMin,
+    Math.min(paddleMax, breakout.paddleX + breakout.paddleDir * delta * 0.78),
+  );
 
   const ball = breakout.ball;
   if (!breakout.launched) {
@@ -1713,12 +1711,16 @@ function updateBreakoutGame(delta) {
     playTone(523.25, 0.05, 0.35);
   }
 
-  const paddleHit = ball.y > 0.79 && ball.y < 0.84 && Math.abs(ball.x - breakout.paddleX) < 0.14 && ball.vy > 0;
+  const paddleHit =
+    ball.y > 0.79 &&
+    ball.y < 0.84 &&
+    Math.abs(ball.x - breakout.paddleX) < paddleHalfWidth + 0.02 &&
+    ball.vy > 0;
   if (paddleHit) {
     ball.y = 0.79;
     ball.vy = -Math.abs(ball.vy) * 1.02;
     ball.vx += (ball.x - breakout.paddleX) * 1.1;
-    ball.vx = Math.max(-0.56, Math.min(0.56, ball.vx));
+    ball.vx = Math.max(-0.72, Math.min(0.72, ball.vx));
     playTone(659.25, 0.06, 0.45);
   }
 
@@ -1883,7 +1885,8 @@ function drawBreakout() {
 
   const breakout = state.breakout;
   if (!breakout) return;
-  fillPixelRect(area, breakout.paddleX - 0.12, 0.86, 0.24, 0.032);
+  const paddleHalfWidth = breakout.paddleHalfWidth || 0.12;
+  fillPixelRect(area, breakout.paddleX - paddleHalfWidth, 0.86, paddleHalfWidth * 2, 0.032);
   const ball = breakout.ball;
   fillPixelRect(area, ball.x - 0.018, ball.y - 0.018, 0.036, 0.036);
 
@@ -2011,6 +2014,7 @@ onTap(instagramShareButton, () => { shareToInstagram().catch(() => {}); });
 onTap(prizeShareButton, () => { shareToInstagram().catch(() => {}); });
 onTap(saleDetailsButton, openSaleDetails);
 onTap(saleChannelButton, openSaleChannel);
+onTap(saleCtaButton, openSaleChannel);
 onTap(saleCloseButton, closeSaleInfo);
 onTap(rulesIntroButton, () => openOnboarding({ forced: true }));
 onTap(rulesButton, () => openOnboarding({ forced: true }));
@@ -2082,7 +2086,6 @@ resetGame();
 computeSelfKeyHash().then(() => {
   if (!ratingPanel.hidden) renderRating();
 });
-updateAnonNotice();
 fetchLeaderboard();
 logEvent("app_open");
 updateSoundButton();
