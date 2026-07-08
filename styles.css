@@ -799,6 +799,7 @@ h2 {
 
 .rating-list {
   display: grid;
+  align-content: start;
   gap: 7px;
   width: 100%;
   min-height: 0;
@@ -820,6 +821,12 @@ h2 {
   border: 2px solid var(--white);
   font-size: 12px;
   font-weight: 900;
+}
+
+/* Строка самого игрока — инверсия (белый фон, синий текст), чтобы сразу видеть своё место. */
+.rating-list li.is-me {
+  background: var(--white);
+  color: var(--blue);
 }
 
 .rating-list .player {

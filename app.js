@@ -1025,6 +1025,7 @@ function renderRating() {
   }
   rows.forEach((row, index) => {
     const item = document.createElement("li");
+    if (row.isLocal) item.classList.add("is-me");
     const place = document.createElement("span");
     const player = document.createElement("span");
     const game = document.createElement("span");
