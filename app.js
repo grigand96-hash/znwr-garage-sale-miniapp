@@ -506,6 +506,7 @@ function resetBreakoutGame() {
 }
 
 function startGame(gameType = state.gameType) {
+  if (saleClosed) { applySaleClosed(true); return; }   // сейл окончен — игра заблокирована
   selectGame(gameType);
   state.infoOpen = false;
   delete app.dataset.overlay;
@@ -981,6 +982,15 @@ function recordRatingResult(outcome) {
   });
 }
 
+// Заглушка «сейл окончен»: по умолчанию заблокировано (безопасный дефолт после сейла),
+// сервер снимает блок только если явно вернул closed:false.
+let saleClosed = true;
+function applySaleClosed(closed) {
+  saleClosed = !!closed;
+  const el = document.getElementById("saleClosedScreen");
+  if (el) el.style.display = saleClosed ? "flex" : "none";
+}
+
 function fetchLeaderboard(force = false) {
   if (!analyticsEndpoint) return Promise.resolve(null);
   if (serverLeadersPromise) return serverLeadersPromise;
@@ -990,6 +1000,7 @@ function fetchLeaderboard(force = false) {
   serverLeadersPromise = fetch(`${analyticsEndpoint}?action=rating&limit=30&ts=${Date.now()}`)
     .then((response) => response.json())
     .then((data) => {
+      applySaleClosed(data?.closed);
       if (data?.ok && Array.isArray(data.players)) {
         serverLeaders = data.players.map((player) => ({
           key: String(player.key || ""),

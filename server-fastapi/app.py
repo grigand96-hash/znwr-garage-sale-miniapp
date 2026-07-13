@@ -35,6 +35,9 @@ from fastapi.responses import JSONResponse
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 DRAW_SECRET = os.environ.get("DRAW_SECRET", "")
 DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "sale.db"))
+# Заглушка после сейла: SALE_CLOSED=1 → рейтинг заморожен (новые очки не принимаются),
+# лидерборд отдаёт "closed": true, по которому фронт показывает экран «сейл окончен».
+SALE_CLOSED = os.environ.get("SALE_CLOSED", "").strip().lower() in ("1", "true", "yes", "on")
 
 PUBLIC_KEY_SALT = "znwr-arcade:"
 RATE_LIMIT_PER_MINUTE = 60
@@ -378,14 +381,15 @@ async def ingest(request: Request):
     log_event(payload, reason if verified else reason)
 
     event = payload.get("event", "")
-    if event in RATING_EVENTS:
+    if event in RATING_EVENTS and not SALE_CLOSED:
         # With a bot token configured, only signed events may enter the rating.
+        # После сейла (SALE_CLOSED) рейтинг заморожен — очки больше не начисляются.
         if not (BOT_TOKEN and not verified):
             try:
                 apply_rating_event(payload)
             except Exception:
                 pass
-    return JSONResponse({"ok": True})
+    return JSONResponse({"ok": True, "closed": SALE_CLOSED})
 
 
 @app.get("/")
@@ -453,7 +457,7 @@ def _leaderboard(limit):
         "totalSeconds": r["total_seconds"] or 0,
         "chance": 1,
     } for r in rows]
-    return JSONResponse({"ok": True, "players": players})
+    return JSONResponse({"ok": True, "players": players, "closed": SALE_CLOSED})
 
 
 def _draw(secret):

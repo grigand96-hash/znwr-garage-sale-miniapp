@@ -184,6 +184,14 @@
         </div>
       </section>
     </main>
-    <script src="./app.js?v=79"></script>
+    <!-- Заглушка после сейла. Видима по умолчанию; app.js прячет её, только если
+         сервер вернул closed:false. Так игра заблокирована даже при недоступном бэкенде. -->
+    <div id="saleClosedScreen" style="position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px;gap:16px;background:#0d0d0f;color:#fff;font-family:inherit;">
+      <div style="font-size:12px;letter-spacing:3px;opacity:.55;">ZNWR ARCADE SALE</div>
+      <div style="font-size:26px;font-weight:800;line-height:1.2;">Сейл окончен</div>
+      <div style="font-size:15px;opacity:.8;max-width:340px;line-height:1.5;">Спасибо, что играли! Приём очков закрыт — идёт розыгрыш Плаща Инженера. Победителя объявим в канале ZNWR.</div>
+      <a href="https://t.me/znwr_home" style="margin-top:6px;color:#8ab4ff;font-size:14px;text-decoration:none;">Канал ZNWR →</a>
+    </div>
+    <script src="./app.js?v=80"></script>
   </body>
 </html>
