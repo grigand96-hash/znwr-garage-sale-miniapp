@@ -186,11 +186,15 @@
     </main>
     <!-- Заглушка после сейла. Видима по умолчанию; app.js прячет её, только если
          сервер вернул closed:false. Так игра заблокирована даже при недоступном бэкенде. -->
-    <div id="saleClosedScreen" style="position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px;gap:16px;background:#0d0d0f;color:#fff;font-family:inherit;">
-      <div style="font-size:12px;letter-spacing:3px;opacity:.55;">ZNWR ARCADE SALE</div>
-      <div style="font-size:26px;font-weight:800;line-height:1.2;">Сейл окончен</div>
-      <div style="font-size:15px;opacity:.8;max-width:340px;line-height:1.5;">Спасибо, что играли! Приём очков закрыт — идёт розыгрыш Плаща Инженера. Победителя объявим в канале ZNWR.</div>
-      <a href="https://t.me/znwr_home" style="margin-top:6px;color:#8ab4ff;font-size:14px;text-decoration:none;">Канал ZNWR →</a>
+    <div id="saleClosedScreen" style="position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px;gap:18px;background:#0025ff;color:#fff;font-family:inherit;">
+      <div style="width:min(360px,100%);border:4px solid #fff;padding:28px 20px;box-shadow:8px 8px 0 rgba(255,255,255,.22);display:grid;gap:18px;justify-items:center;">
+        <div style="font-size:12px;letter-spacing:3px;">ZNWR ARCADE SALE</div>
+        <div style="font-size:34px;font-weight:900;line-height:1.05;">РОЗЫГРЫШ<br />ЗАВЕРШЁН</div>
+        <div style="font-size:13px;letter-spacing:2px;">ПОБЕДИТЕЛЬ</div>
+        <div style="font-size:30px;font-weight:900;line-height:1.1;">@Alexbadyla</div>
+        <div style="font-size:14px;line-height:1.45;max-width:290px;">Спасибо всем, кто играл в ZNWR Arcade Sale. В розыгрыше участвовали 977 игроков.</div>
+        <a href="https://t.me/znwr_home" style="margin-top:4px;display:inline-block;background:#fff;color:#0025ff;padding:14px 18px;font-size:14px;font-weight:900;text-decoration:none;box-shadow:5px 5px 0 rgba(255,255,255,.22);">КАНАЛ ZNWR</a>
+      </div>
     </div>
     <script src="./app.js?v=80"></script>
   </body>
